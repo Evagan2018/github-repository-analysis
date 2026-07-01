@@ -29,14 +29,13 @@ github-repository-analysis/
 │   ├── reviewed/
 │   ├── screening/
 │   └── db/
-├── sql/
-└── monitor-config.yml
+└── sql/
 ```
 
 ## Workflow Overview
 
 ```text
-GitHub organizations
+GitHub organizations (arm-examples, arm-software, open-cmsis-packs, mdk-packs)
         |
         v
 01_Get_Repositories.py
@@ -56,21 +55,23 @@ Manual review in Excel
         v
 data/reviewed/Summary_Reviewed_List.xlsx
         |
-        +--> 03_Get_Reviewed_Repositories.py
-        |         |
-        |         v
-        |   data/reviewed/Summary_Reviewed_List_use_access.csv
+        v
+03_Get_Reviewed_Repositories.py
         |
-        +--> 04_Get_Repositories_to_screen.py
-                  |
-                  v
-          data/screening/Summary_Reviewed_List_to_screen.xlsx
-                  |
-                  v
-          05_Create_SQLite_Database.py
-                  |
-                  v
-          data/db/Repository_Analysis.sqlite
+        v
+data/reviewed/Summary_Reviewed_List_use_access.csv
+        |
+        v
+04_Get_Repositories_to_screen.py
+        |
+        v
+data/screening/Summary_Reviewed_List_to_screen.xlsx
+        |
+        v
+05_Create_SQLite_Database.py
+        |
+        v
+data/db/Repository_Analysis.sqlite
 ```
 
 ## Script Order
