@@ -1,0 +1,37 @@
+Repository Analysis Database Flow
+=================================
+
+Summary_Reviewed_List.xlsx
+        |
+        v
+04_Get_Repositories_to_screen.py
+        |
+        v
+Summary_Reviewed_List_to_screen.xlsx
+        |
+        v
+05_Create_SQLite_Database.py
+        |
+        +--> repositories
+        |       1 row per repository
+        |
+        +--> screening_snapshot
+        |       1 row per repository per snapshot_date
+        |
+        +--> daily_traffic
+                1 row per repository per metric_date
+
+
+Relationship Model
+------------------
+
+repositories (1) -----< screening_snapshot
+repositories (1) -----< daily_traffic
+
+
+Seed Phase
+----------
+
+- Import repository metadata and context into repositories
+- Import rolling 14-day screening values into screening_snapshot
+- Keep daily_traffic empty until the daily collector writes per-day metrics
