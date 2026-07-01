@@ -236,6 +236,9 @@ function renderOrganizationChart() {
   const metricName = state.snapshotMetric;
   const metricLabel = SNAPSHOT_METRICS[metricName].label;
   const dataRows = aggregateBy(state.data.current_snapshot || [], "organization", metricName);
+  const organizationNames = dataRows.map((row) => row.key);
+  const metricValues = dataRows.map((row) => Number(row.value) || 0);
+  const maxValue = Math.max(...metricValues, 0);
 
   if (dataRows.length === 0) {
     renderEmptyState(
@@ -251,8 +254,8 @@ function renderOrganizationChart() {
     [
       {
         type: "bar",
-        x: dataRows.map((row) => row.key),
-        y: dataRows.map((row) => row.value),
+        x: organizationNames,
+        y: metricValues,
         marker: {
           color: dataRows.map((_, index) =>
             index % 2 === 0 ? SNAPSHOT_METRICS[metricName].color : "#15342c"
@@ -264,7 +267,20 @@ function renderOrganizationChart() {
     ],
     {
       ...plotLayoutBase,
-      yaxis: { ...plotLayoutBase.yaxis, title: metricLabel },
+      xaxis: {
+        ...plotLayoutBase.xaxis,
+        categoryorder: "array",
+        categoryarray: organizationNames,
+      },
+      yaxis: {
+        ...plotLayoutBase.yaxis,
+        title: metricLabel,
+        type: "linear",
+        autorange: false,
+        range: [0, maxValue === 0 ? 1 : Math.ceil(maxValue * 1.08)],
+        rangemode: "tozero",
+        tickformat: ",d",
+      },
       margin: { t: 24, r: 12, b: 80, l: 64 },
     },
     { displayModeBar: false, responsive: true }
