@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GitHub Repository Analysis Dashboard</title>
+    <meta
+      name="description"
+      content="Static dashboard for repository screening metrics and daily GitHub traffic trends."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./assets/dashboard.css" />
+    <script defer src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <script defer src="./data/dashboard_data.js"></script>
+    <script defer src="./assets/dashboard.js"></script>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">GitHub Repository Analysis</p>
+          <h1>Screening metrics, trend lines, and heatmaps in one static dashboard.</h1>
+          <p class="hero-text">
+            The dashboard is backed by the SQLite seed database and exported as static JSON,
+            so it can be hosted on GitHub Pages without a server.
+          </p>
+        </div>
+        <div class="hero-panel">
+          <div class="hero-status">
+            <span class="status-label">Data Refresh</span>
+            <strong id="generated-at">Loading...</strong>
+          </div>
+          <div class="hero-status">
+            <span class="status-label">Latest Snapshot</span>
+            <strong id="latest-snapshot">Loading...</strong>
+          </div>
+          <div class="hero-status">
+            <span class="status-label">Latest Daily Metric</span>
+            <strong id="latest-metric">Waiting for daily collector</strong>
+          </div>
+        </div>
+      </header>
+
+      <section class="controls-card card">
+        <div>
+          <p class="section-kicker">Controls</p>
+          <h2>Adjust the current view</h2>
+        </div>
+        <div class="control-grid">
+          <label class="control">
+            <span>Organization</span>
+            <select id="organization-filter"></select>
+          </label>
+          <label class="control">
+            <span>Snapshot Metric</span>
+            <select id="snapshot-metric">
+              <option value="total_views_14d">Total views (14d)</option>
+              <option value="unique_visitors_14d">Unique visitors (14d)</option>
+              <option value="unique_cloners_14d">Unique cloners (14d)</option>
+            </select>
+          </label>
+          <label class="control">
+            <span>Daily Metric</span>
+            <select id="daily-metric">
+              <option value="views_count">Views</option>
+              <option value="views_uniques">Unique visitors</option>
+              <option value="clones_count">Clones</option>
+              <option value="clones_uniques">Unique cloners</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="stats-grid">
+        <article class="card stat-card">
+          <span class="stat-label">Repositories tracked</span>
+          <strong id="stat-repositories">0</strong>
+        </article>
+        <article class="card stat-card">
+          <span class="stat-label">Organizations</span>
+          <strong id="stat-organizations">0</strong>
+        </article>
+        <article class="card stat-card">
+          <span class="stat-label">Screening snapshots</span>
+          <strong id="stat-screening">0</strong>
+        </article>
+        <article class="card stat-card">
+          <span class="stat-label">Daily traffic points</span>
+          <strong id="stat-daily">0</strong>
+        </article>
+      </section>
+
+      <section class="viz-grid">
+        <article class="card chart-card span-7">
+          <div class="card-heading">
+            <div>
+              <p class="section-kicker">Current Snapshot</p>
+              <h2>Latest screening totals by organization</h2>
+            </div>
+            <span class="pill">All organizations</span>
+          </div>
+          <div id="organization-chart" class="chart-surface"></div>
+        </article>
+
+        <article class="card chart-card span-5">
+          <div class="card-heading">
+            <div>
+              <p class="section-kicker">Current Snapshot</p>
+              <h2>Top repositories</h2>
+            </div>
+            <span class="pill" id="top-repo-metric-label">Total views (14d)</span>
+          </div>
+          <div id="top-repositories-chart" class="chart-surface"></div>
+        </article>
+
+        <article class="card chart-card span-6">
+          <div class="card-heading">
+            <div>
+              <p class="section-kicker">Rolling Snapshot History</p>
+              <h2>Screening trend over time</h2>
+            </div>
+            <span class="pill" id="snapshot-history-source">GitHub rolling 14-day window</span>
+          </div>
+          <div id="snapshot-history-chart" class="chart-surface"></div>
+        </article>
+
+        <article class="card chart-card span-6">
+          <div class="card-heading">
+            <div>
+              <p class="section-kicker">Daily Traffic</p>
+              <h2>Collector-based trend</h2>
+            </div>
+            <span class="pill" id="daily-chart-metric-label">Views</span>
+          </div>
+          <div id="daily-trend-chart" class="chart-surface"></div>
+        </article>
+
+        <article class="card chart-card span-12">
+          <div class="card-heading">
+            <div>
+              <p class="section-kicker">Daily Traffic</p>
+              <h2>Repository heatmap</h2>
+            </div>
+            <span class="pill" id="heatmap-metric-label">Views</span>
+          </div>
+          <div id="heatmap-chart" class="chart-surface heatmap"></div>
+        </article>
+      </section>
+
+      <section class="table-card card">
+        <div class="card-heading">
+          <div>
+            <p class="section-kicker">Current Snapshot</p>
+            <h2>Repository screening table</h2>
+          </div>
+          <span class="pill" id="table-summary">Loading...</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Repository</th>
+                <th>Organization</th>
+                <th>Total views (14d)</th>
+                <th>Unique visitors (14d)</th>
+                <th>Unique cloners (14d)</th>
+                <th>Visibility</th>
+                <th>Archived</th>
+                <th>Days since last push</th>
+              </tr>
+            </thead>
+            <tbody id="repository-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>

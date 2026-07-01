@@ -1,0 +1,65 @@
+name: Collect Daily Traffic
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repository-analysis-daily-traffic
+  cancel-in-progress: false
+
+jobs:
+  collect-daily-traffic:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate GitHub traffic token
+        env:
+          REPOSITORY_ANALYSIS_TOKEN: ${{ secrets.REPOSITORY_ANALYSIS_TOKEN }}
+        run: |
+          if [ -z "${REPOSITORY_ANALYSIS_TOKEN}" ]; then
+            echo "Missing repository secret REPOSITORY_ANALYSIS_TOKEN." >&2
+            echo "Add a token that can read repository traffic for the target repositories." >&2
+            exit 1
+          fi
+
+      - name: Collect daily traffic
+        env:
+          GH_TOKEN: ${{ secrets.REPOSITORY_ANALYSIS_TOKEN }}
+        run: |
+          python scripts/07_Collect_Daily_Traffic.py data/db/Repository_Analysis.sqlite
+
+      - name: Export dashboard data
+        run: |
+          python scripts/06_Export_SQLite_To_JSON.py \
+            data/db/Repository_Analysis.sqlite \
+            docs/data/dashboard_data.json
+
+      - name: Commit updated database and dashboard data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f \
+            data/db/Repository_Analysis.sqlite \
+            docs/data/dashboard_data.json \
+            docs/data/dashboard_data.js
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "chore: update repository traffic data"
+          git push
