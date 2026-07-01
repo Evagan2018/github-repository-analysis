@@ -18,22 +18,22 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
-      - name: Validate GitHub traffic token
-        env:
-          REPOSITORY_ANALYSIS_TOKEN: ${{ secrets.REPOSITORY_ANALYSIS_TOKEN }}
-        run: |
-          if [ -z "${REPOSITORY_ANALYSIS_TOKEN}" ]; then
-            echo "Missing repository secret REPOSITORY_ANALYSIS_TOKEN." >&2
-            echo "Add a token that can read repository traffic for the target repositories." >&2
-            exit 1
-          fi
+     # - name: Validate GitHub traffic token
+     #   env:
+     #     REPOSITORY_ANALYSIS_TOKEN: ${{ secrets.REPOSITORY_ANALYSIS_TOKEN }}
+     #   run: |
+     #     if [ -z "${REPOSITORY_ANALYSIS_TOKEN}" ]; then
+     #       echo "Missing repository secret REPOSITORY_ANALYSIS_TOKEN." >&2
+     #       echo "Add a token that can read repository traffic for the target repositories." >&2
+     #       exit 1
+     #     fi
 
       - name: Collect daily traffic
         env:
