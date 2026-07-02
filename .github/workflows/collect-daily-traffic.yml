@@ -25,8 +25,19 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Validate GitHub traffic token
+        env:
+          REPOSITORY_ANALYSIS_TOKEN: ${{ secrets.REPOSITORY_ANALYSIS_TOKEN }}
+        run: |
+          if [ -z "${REPOSITORY_ANALYSIS_TOKEN}" ]; then
+            echo "::error::Missing repository secret REPOSITORY_ANALYSIS_TOKEN."
+            echo "Add a token that can read repository traffic for the tracked repositories."
+            exit 1
+          fi
+
       - name: Collect daily traffic
         env:
+          GITHUB_TOKEN: ${{ secrets.REPOSITORY_ANALYSIS_TOKEN }}
           GH_TOKEN: ${{ secrets.REPOSITORY_ANALYSIS_TOKEN }}
         run: |
           python scripts/07_Collect_Daily_Traffic.py data/db/Repository_Analysis.sqlite
