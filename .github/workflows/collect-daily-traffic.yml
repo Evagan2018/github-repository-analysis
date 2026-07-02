@@ -31,7 +31,6 @@ jobs:
         run: |
           if [ -z "${REPOSITORY_ANALYSIS_TOKEN}" ]; then
             echo "::error::Missing repository secret REPOSITORY_ANALYSIS_TOKEN."
-            echo "Add a token that can read repository traffic for the tracked repositories."
             exit 1
           fi
 
@@ -64,25 +63,3 @@ jobs:
 
           git commit -m "chore: update repository traffic data"
           git push
-
-      - name: Upload dashboard for GitHub Pages
-        if: github.ref == 'refs/heads/main'
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: docs
-
-  deploy-pages:
-    if: github.ref == 'refs/heads/main'
-    needs: collect-daily-traffic
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
