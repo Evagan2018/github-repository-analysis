@@ -15,6 +15,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./assets/dashboard.css" />
+    <link rel="stylesheet" href="./assets/design-overrides.css" />
     <script defer src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     <script defer src="./data/dashboard_data.js"></script>
     <script defer src="./assets/dashboard.js"></script>
@@ -80,6 +81,7 @@
         <article class="card stat-card">
           <span class="stat-label">Repositories tracked</span>
           <strong id="stat-repositories">0</strong>
+          <div id="stat-repositories-by-org" class="stat-breakdown"></div>
         </article>
         <article class="card stat-card">
           <span class="stat-label">Organizations</span>
@@ -96,7 +98,7 @@
       </section>
 
       <section class="viz-grid">
-        <article class="card chart-card span-7">
+        <article class="card chart-card span-6">
           <div class="card-heading">
             <div>
               <p class="section-kicker">Current Snapshot</p>
@@ -107,7 +109,7 @@
           <div id="organization-chart" class="chart-surface"></div>
         </article>
 
-        <article class="card chart-card span-5">
+        <article class="card chart-card span-6">
           <div class="card-heading">
             <div>
               <p class="section-kicker">Current Snapshot</p>
@@ -160,6 +162,7 @@
           </div>
           <span class="pill" id="table-summary">Loading...</span>
         </div>
+
         <div class="table-wrap">
           <table>
             <thead>
@@ -169,7 +172,6 @@
                 <th>Total views (14d)</th>
                 <th>Unique visitors (14d)</th>
                 <th>Unique cloners (14d)</th>
-                <th>Visibility</th>
                 <th>Archived</th>
                 <th>Days since last push</th>
               </tr>
@@ -177,6 +179,7 @@
             <tbody id="repository-table-body"></tbody>
           </table>
         </div>
+
       </section>
     </div>
   </body>

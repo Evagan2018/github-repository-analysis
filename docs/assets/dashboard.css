@@ -161,6 +161,37 @@ body {
   font-size: 2.2rem;
 }
 
+.stat-breakdown {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.stat-breakdown-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.stat-breakdown-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-breakdown-row strong {
+  flex: 0 0 auto;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+
 .viz-grid {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));

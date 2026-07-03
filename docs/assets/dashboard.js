@@ -31,8 +31,41 @@ const DAILY_METRICS = {
   },
   clones_uniques: {
     label: "Unique cloners",
-    color: "#3885d1",
+    color: "#5d7de3",
   },
+};
+
+const DAILY_METRIC_BY_SNAPSHOT_METRIC = {
+  total_views_14d: "views_count",
+  unique_visitors_14d: "views_uniques",
+  unique_cloners_14d: "clones_uniques",
+};
+
+const HEATMAP_COLOR_SCALES = {
+  views_count: [
+    [0, "#e8f5ee"],
+    [0.35, "#7bc6aa"],
+    [0.7, "#1d7c6f"],
+    [1, "#15342c"],
+  ],
+  views_uniques: [
+    [0, "#fff0e8"],
+    [0.35, "#efb086"],
+    [0.7, "#bf6a3f"],
+    [1, "#7d3f23"],
+  ],
+  clones_count: [
+    [0, "#eeeafd"],
+    [0.35, "#b6a8ea"],
+    [0.7, "#6b57c8"],
+    [1, "#3f2d8f"],
+  ],
+  clones_uniques: [
+    [0, "#eef2ff"],
+    [0.35, "#aebef5"],
+    [0.7, "#5d7de3"],
+    [1, "#28469f"],
+  ],
 };
 
 const ui = {
@@ -40,6 +73,7 @@ const ui = {
   latestSnapshot: document.getElementById("latest-snapshot"),
   latestMetric: document.getElementById("latest-metric"),
   statRepositories: document.getElementById("stat-repositories"),
+  statRepositoriesByOrg: document.getElementById("stat-repositories-by-org"),
   statOrganizations: document.getElementById("stat-organizations"),
   statScreening: document.getElementById("stat-screening"),
   statDaily: document.getElementById("stat-daily"),
@@ -58,6 +92,14 @@ const state = {
   snapshotMetric: "total_views_14d",
   dailyMetric: "views_count",
   data: null,
+};
+
+const DAILY_VIEWS_AXIS_MAX_BY_ORGANIZATION = {
+  ALL: 3000,
+  "arm-examples": 500,
+  "arm-software": 2000,
+  "mdk-packs": 100,
+  "open-cmsis-pack": 1000,
 };
 
 const plotLayoutBase = {
@@ -119,6 +161,54 @@ function aggregateBy(items, groupKey, metricName) {
   return Array.from(totals.entries())
     .map(([key, value]) => ({ key, value }))
     .sort((left, right) => right.value - left.value);
+}
+
+function getNiceTickStep(maxValue, tickCount = 5) {
+  const rawStep = maxValue / tickCount;
+  if (!Number.isFinite(rawStep) || rawStep <= 0) {
+    return 1;
+  }
+
+  const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+  const normalized = rawStep / magnitude;
+  const niceNormalized =
+    normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 2.5 ? 2.5 : normalized <= 5 ? 5 : 10;
+
+  return niceNormalized * magnitude;
+}
+
+function buildLinearAxisTicks(maxValue, tickCount = 5) {
+  const step = getNiceTickStep(maxValue, tickCount);
+  return Array.from({ length: tickCount + 1 }, (_, index) => step * index);
+}
+
+function parseIsoDate(dateKey) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function addUtcDays(date, days) {
+  const nextDate = new Date(date);
+  nextDate.setUTCDate(nextDate.getUTCDate() + days);
+  return nextDate;
+}
+
+function toIsoDateKey(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function formatDateKeyWithWeekday(dateKey) {
+  const weekdayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+  return `${dateKey} ${weekdayNames[parseIsoDate(dateKey).getUTCDay()]}`;
+}
+
+function buildDateWindow(endDateKey, dayCount) {
+  const endDate = parseIsoDate(endDateKey);
+  const startDate = addUtcDays(endDate, -(dayCount - 1));
+
+  return Array.from({ length: dayCount }, (_, index) =>
+    toIsoDateKey(addUtcDays(startDate, index))
+  );
 }
 
 function renderEmptyState(elementId, title, message) {
@@ -227,6 +317,22 @@ function renderSummary() {
     ? formatDate(summary.latest_metric_date)
     : "Waiting for daily collector";
   ui.statRepositories.textContent = formatNumber(summary.repository_count);
+  const repositoryCountsByOrg = new Map();
+  (state.data.current_snapshot || []).forEach((row) => {
+    const organization = row.organization || "Unknown";
+    repositoryCountsByOrg.set(organization, (repositoryCountsByOrg.get(organization) || 0) + 1);
+  });
+  ui.statRepositoriesByOrg.innerHTML = (state.data.organizations || [])
+    .map((organization) => {
+      const count = repositoryCountsByOrg.get(organization) || 0;
+      return `
+        <div class="stat-breakdown-row">
+          <span>${organization}</span>
+          <strong>${formatNumber(count)}</strong>
+        </div>
+      `;
+    })
+    .join("");
   ui.statOrganizations.textContent = formatNumber(summary.organization_count);
   ui.statScreening.textContent = formatNumber(summary.screening_snapshot_count);
   ui.statDaily.textContent = formatNumber(summary.daily_traffic_count);
@@ -335,9 +441,17 @@ function renderSnapshotHistoryChart() {
   const metricName = state.snapshotMetric;
   const metricConfig = SNAPSHOT_METRICS[metricName];
   const rows = getFilteredSnapshotHistoryRows();
-  const series = aggregateBy(rows, "snapshot_date", metricName);
+  const series = aggregateBy(rows, "snapshot_date", metricName).sort((left, right) =>
+    left.key.localeCompare(right.key)
+  );
+  const totalsByDate = new Map(series.map((row) => [row.key, row.value]));
+  const axisDates = series.length > 0 ? buildDateWindow(series.at(-1).key, 14) : [];
+  const dates = axisDates;
+  const values = axisDates.map((date) => totalsByDate.get(date) || 0);
+  const yAxisTicks = buildLinearAxisTicks(Math.max(...values, 0));
+  const yAxisMax = yAxisTicks.at(-1) || 1;
 
-  if (series.length < 2) {
+  if (series.length === 0) {
     renderEmptyState(
       "snapshot-history-chart",
       "Not enough snapshot history yet",
@@ -352,9 +466,9 @@ function renderSnapshotHistoryChart() {
       {
         type: "scatter",
         mode: "lines+markers",
-        x: series.map((row) => row.key),
-        y: series.map((row) => row.value),
-        line: { color: metricConfig.color, width: 3, shape: "spline" },
+        x: dates,
+        y: values,
+        line: { color: metricConfig.color, width: 3, shape: "linear" },
         marker: { size: 9, color: "#15342c" },
         hovertemplate:
           "%{x}<br>" + metricConfig.label + ": %{y:,}<extra></extra>",
@@ -362,18 +476,49 @@ function renderSnapshotHistoryChart() {
     ],
     {
       ...plotLayoutBase,
-      xaxis: { ...plotLayoutBase.xaxis, title: "Snapshot date" },
-      yaxis: { ...plotLayoutBase.yaxis, title: metricConfig.label },
+      xaxis: {
+        ...plotLayoutBase.xaxis,
+        title: "Snapshot date",
+        type: "date",
+        range: [axisDates[0], axisDates.at(-1)],
+        tickmode: "array",
+        tickvals: axisDates,
+        ticktext: axisDates.map(formatDateKeyWithWeekday),
+      },
+      yaxis: {
+        ...plotLayoutBase.yaxis,
+        title: metricConfig.label,
+        type: "linear",
+        autorange: false,
+        fixedrange: true,
+        range: [0, yAxisMax],
+        rangemode: "tozero",
+        tickmode: "array",
+        tickvals: yAxisTicks,
+        ticktext: yAxisTicks.map((tick) => formatNumber(tick)),
+        tickformat: ",d",
+      },
     },
     { displayModeBar: false, responsive: true }
   );
 }
 
 function renderDailyTrendChart() {
-  const metricName = state.dailyMetric;
+  const metricName = DAILY_METRIC_BY_SNAPSHOT_METRIC[state.snapshotMetric] || "views_count";
   const metricConfig = DAILY_METRICS[metricName];
   const rows = getFilteredDailyRows();
-  const series = aggregateBy(rows, "metric_date", metricName);
+  const series = aggregateBy(rows, "metric_date", metricName).sort((left, right) =>
+    left.key.localeCompare(right.key)
+  );
+  const dates = series.map((row) => row.key);
+  const values = series.map((row) => row.value);
+  const yAxisTicks =
+    metricName === "views_count"
+      ? Array.from({ length: 6 }, (_, index) =>
+          ((DAILY_VIEWS_AXIS_MAX_BY_ORGANIZATION[state.organization] || 3000) / 5) * index
+        )
+      : buildLinearAxisTicks(Math.max(...values, 0));
+  const yAxisMax = yAxisTicks.at(-1) || 1;
 
   ui.dailyChartMetricLabel.textContent = metricConfig.label;
 
@@ -381,7 +526,7 @@ function renderDailyTrendChart() {
     renderEmptyState(
       "daily-trend-chart",
       "No daily trend yet",
-      "Populate the daily_traffic table to unlock the collector-based line chart."
+      "Populate the daily_traffic table to unlock the daily metric column chart."
     );
     return;
   }
@@ -390,20 +535,43 @@ function renderDailyTrendChart() {
     "daily-trend-chart",
     [
       {
-        type: "scatter",
-        mode: "lines+markers",
-        x: series.map((row) => row.key),
-        y: series.map((row) => row.value),
-        line: { color: metricConfig.color, width: 3, shape: "spline" },
-        marker: { size: 8, color: "#15342c" },
+        type: "bar",
+        x: dates,
+        y: values,
+        marker: {
+          color: metricConfig.color,
+          line: { color: "rgba(255,255,255,0.45)", width: 1 },
+        },
         hovertemplate:
           "%{x}<br>" + metricConfig.label + ": %{y:,}<extra></extra>",
       },
     ],
     {
       ...plotLayoutBase,
-      xaxis: { ...plotLayoutBase.xaxis, title: "Metric date" },
-      yaxis: { ...plotLayoutBase.yaxis, title: metricConfig.label },
+      bargap: 0.34,
+      xaxis: {
+        ...plotLayoutBase.xaxis,
+        title: "Metric date",
+        type: "category",
+        categoryorder: "array",
+        categoryarray: dates,
+        tickmode: "array",
+        tickvals: dates,
+        ticktext: dates.map(formatDateKeyWithWeekday),
+      },
+      yaxis: {
+        ...plotLayoutBase.yaxis,
+        title: metricConfig.label,
+        type: "linear",
+        autorange: false,
+        fixedrange: true,
+        range: [0, yAxisMax],
+        rangemode: "tozero",
+        tickmode: "array",
+        tickvals: yAxisTicks,
+        ticktext: yAxisTicks.map((tick) => formatNumber(tick)),
+        tickformat: ",d",
+      },
     },
     { displayModeBar: false, responsive: true }
   );
@@ -447,21 +615,37 @@ function renderHeatmapChart() {
         x: dates,
         y: repositories,
         z: matrix,
-        colorscale: [
-          [0, "#e8f5ee"],
-          [0.35, "#7bc6aa"],
-          [0.7, "#1d7c6f"],
-          [1, "#15342c"],
-        ],
+        xgap: 1,
+        ygap: 1,
+        colorscale: HEATMAP_COLOR_SCALES[metricName] || HEATMAP_COLOR_SCALES.views_count,
         hovertemplate:
           "%{y}<br>%{x}<br>" + metricConfig.label + ": %{z:,}<extra></extra>",
       },
     ],
     {
       ...plotLayoutBase,
+      plot_bgcolor: "rgba(21, 52, 44, 0.14)",
       margin: { t: 24, r: 12, b: 80, l: 180 },
-      xaxis: { ...plotLayoutBase.xaxis, title: "Metric date" },
-      yaxis: { ...plotLayoutBase.yaxis, title: "" },
+      xaxis: {
+        ...plotLayoutBase.xaxis,
+        title: "Metric date",
+        type: "category",
+        categoryorder: "array",
+        categoryarray: dates,
+        tickmode: "array",
+        tickvals: dates,
+        ticktext: dates.map(formatDateKeyWithWeekday),
+        showgrid: true,
+        gridwidth: 1,
+        gridcolor: "rgba(21, 52, 44, 0.16)",
+      },
+      yaxis: {
+        ...plotLayoutBase.yaxis,
+        title: "",
+        showgrid: true,
+        gridwidth: 1,
+        gridcolor: "rgba(21, 52, 44, 0.16)",
+      },
     },
     { displayModeBar: false, responsive: true }
   );
@@ -488,7 +672,6 @@ function renderRepositoryTable() {
           <td>${formatNumber(row.total_views_14d)}</td>
           <td>${formatNumber(row.unique_visitors_14d)}</td>
           <td>${formatNumber(row.unique_cloners_14d)}</td>
-          <td>${row.visibility || "Unknown"}</td>
           <td>
             <span class="badge ${row.archived ? "badge-yes" : "badge-no"}">
               ${row.archived ? "Archived" : "Active"}
