@@ -271,6 +271,12 @@ thead th {
   letter-spacing: 0.1em;
 }
 
+thead th span {
+  display: block;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+
 tbody td {
   padding: 0.9rem 0.75rem;
   border-top: 1px solid var(--line);

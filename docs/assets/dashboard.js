@@ -657,7 +657,7 @@ function renderRepositoryTable() {
       (left, right) =>
         metricOrZero(right, state.snapshotMetric) - metricOrZero(left, state.snapshotMetric)
     )
-    .slice(0, 20);
+    .slice(0, 40);
 
   ui.tableSummary.textContent = `${formatNumber(rows.length)} repositories shown`;
   ui.repositoryTableBody.innerHTML = rows
