@@ -243,6 +243,22 @@ body {
   min-height: 420px;
 }
 
+.repository-comparison {
+  min-height: 1280px;
+}
+
+.repository-comparison-medium {
+  min-height: 760px;
+}
+
+.repository-comparison-small {
+  min-height: 560px;
+}
+
+.repository-comparison-large {
+  min-height: 3200px;
+}
+
 .table-card {
   margin-top: 1.35rem;
 }

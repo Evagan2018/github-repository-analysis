@@ -68,6 +68,33 @@ const HEATMAP_COLOR_SCALES = {
   ],
 };
 
+const COMPRESSED_REPOSITORY_AXIS = {
+  points: [
+    { value: 0, position: 0 },
+    { value: 1000, position: 2500 },
+    { value: 2500, position: 3000 },
+    { value: 5000, position: 4000 },
+    { value: 50000, position: 6000 },
+  ],
+  ticks: [0, 250, 500, 750, 1000, 2500, 5000, 10000, 20000, 30000, 40000, 50000],
+};
+
+const OPEN_CMSIS_PACK_REPOSITORY_AXIS = {
+  points: [
+    { value: 0, position: 0 },
+    { value: 200, position: 500 },
+    { value: 400, position: 700 },
+    { value: 600, position: 800 },
+    { value: 800, position: 866.67 },
+    { value: 1000, position: 933.33 },
+    { value: 1200, position: 1000 },
+  ],
+  ticks: [
+    0, 20, 40, 60, 80, 100, 120, 140, 160, 180, 200, 250, 300, 350, 400, 600, 800,
+    1000, 1200,
+  ],
+};
+
 const ui = {
   generatedAt: document.getElementById("generated-at"),
   latestSnapshot: document.getElementById("latest-snapshot"),
@@ -131,6 +158,21 @@ function formatNumber(value) {
   return new Intl.NumberFormat("en-US").format(value);
 }
 
+function escapeHtml(value) {
+  const replacements = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  };
+  return String(value ?? "").replace(/[&<>"']/g, (character) => replacements[character]);
+}
+
+function getRepositoryTrafficUrl(repositoryFullName) {
+  return `https://github.com/${repositoryFullName}/graphs/traffic`;
+}
+
 function formatDate(value) {
   if (!value) {
     return "Not available";
@@ -180,6 +222,23 @@ function getNiceTickStep(maxValue, tickCount = 5) {
 function buildLinearAxisTicks(maxValue, tickCount = 5) {
   const step = getNiceTickStep(maxValue, tickCount);
   return Array.from({ length: tickCount + 1 }, (_, index) => step * index);
+}
+
+function compressRepositoryMetricValue(value, axisConfig = COMPRESSED_REPOSITORY_AXIS) {
+  const numericValue = Math.max(Number(value) || 0, 0);
+  const { points } = axisConfig;
+
+  if (numericValue <= points[0].value) {
+    return points[0].position;
+  }
+
+  const endIndex = points.findIndex((point) => numericValue <= point.value);
+  const endPoint = endIndex === -1 ? points.at(-1) : points[endIndex];
+  const startPoint = endIndex === -1 ? points.at(-2) : points[endIndex - 1];
+  const rawSpan = endPoint.value - startPoint.value;
+  const visualSpan = endPoint.position - startPoint.position;
+
+  return startPoint.position + ((numericValue - startPoint.value) / rawSpan) * visualSpan;
 }
 
 function parseIsoDate(dateKey) {
@@ -437,6 +496,168 @@ function renderTopRepositoriesChart() {
   );
 }
 
+function renderOrganizationRepositoriesComparisonChart(elementId, organizationName, options = {}) {
+  const {
+    compressedAxis = false,
+    linkedRepositoryLabels = false,
+    axisConfig = null,
+    legendY = 1.08,
+  } = options;
+  const customAxis = axisConfig || (compressedAxis ? COMPRESSED_REPOSITORY_AXIS : null);
+  const rows = (state.data.current_snapshot || [])
+    .filter((row) => row.organization === organizationName)
+    .sort(
+      (left, right) =>
+        metricOrZero(right, "total_views_14d") - metricOrZero(left, "total_views_14d")
+    );
+
+  if (rows.length === 0) {
+    renderEmptyState(
+      elementId,
+      `No ${organizationName} repositories`,
+      "Regenerate the screening data to populate this organization comparison."
+    );
+    return;
+  }
+
+  const displayRows = [...rows].reverse();
+  const repositoryNames = displayRows.map((row) => row.repository);
+  const repositoryFullNames = displayRows.map((row) => row.repository_full_name);
+  const repositoryLabels = displayRows.map((row) => {
+    if (!linkedRepositoryLabels) {
+      return row.repository;
+    }
+
+    return `<a href="${getRepositoryTrafficUrl(row.repository_full_name)}" target="_blank">${escapeHtml(row.repository)}</a>`;
+  });
+  const traceDefinitions = [
+    {
+      name: SNAPSHOT_METRICS.total_views_14d.label,
+      metricName: "total_views_14d",
+      color: SNAPSHOT_METRICS.total_views_14d.color,
+    },
+    {
+      name: SNAPSHOT_METRICS.unique_visitors_14d.label,
+      metricName: "unique_visitors_14d",
+      color: SNAPSHOT_METRICS.unique_visitors_14d.color,
+    },
+    {
+      name: SNAPSHOT_METRICS.unique_cloners_14d.label,
+      metricName: "unique_cloners_14d",
+      color: SNAPSHOT_METRICS.unique_cloners_14d.color,
+    },
+  ];
+  const traces = [...traceDefinitions].reverse();
+  const allRawValues = displayRows.flatMap((row) =>
+    traceDefinitions.map((trace) => metricOrZero(row, trace.metricName))
+  );
+  const maxRawValue = Math.max(...allRawValues, 0);
+  const compressedTicks = customAxis ? [...customAxis.ticks] : [];
+  const largestCompressedTick = compressedTicks.at(-1);
+
+  if (customAxis?.extensionStep && maxRawValue > largestCompressedTick) {
+    const extensionStep = customAxis.extensionStep;
+    compressedTicks.push(Math.ceil(maxRawValue / extensionStep) * extensionStep);
+  }
+
+  const xaxis = customAxis
+    ? {
+        ...plotLayoutBase.xaxis,
+        title: "Repository metric count (custom scale)",
+        type: "linear",
+        range: [
+          0,
+          compressRepositoryMetricValue(Math.max(compressedTicks.at(-1), maxRawValue), customAxis),
+        ],
+        tickmode: "array",
+        tickvals: compressedTicks.map((tick) => compressRepositoryMetricValue(tick, customAxis)),
+        ticktext: compressedTicks.map(formatNumber),
+      }
+    : {
+        ...plotLayoutBase.xaxis,
+        title: "Repository metric count",
+        type: "linear",
+        rangemode: "tozero",
+        tickformat: ",d",
+      };
+
+  Plotly.react(
+    elementId,
+    traces.map((trace) => {
+      const rawValues = displayRows.map((row) => metricOrZero(row, trace.metricName));
+
+      return {
+        type: "bar",
+        orientation: "h",
+        name: trace.name,
+        y: repositoryNames,
+        x: customAxis
+          ? rawValues.map((value) => compressRepositoryMetricValue(value, customAxis))
+          : rawValues,
+        customdata: repositoryFullNames.map((repositoryFullName, index) => [
+          repositoryFullName,
+          rawValues[index],
+        ]),
+        marker: {
+          color: trace.color,
+          line: { color: "rgba(255,255,255,0.45)", width: 1 },
+        },
+        hovertemplate:
+          "%{customdata[0]}<br>" + trace.name + ": %{customdata[1]:,}<extra></extra>",
+      };
+    }),
+    {
+      ...plotLayoutBase,
+      barmode: "group",
+      bargap: 0.36,
+      bargroupgap: 0.08,
+      margin: { t: 36, r: 20, b: 72, l: 210 },
+      legend: {
+        orientation: "h",
+        traceorder: "reversed",
+        x: 0,
+        y: legendY,
+        xanchor: "left",
+        yanchor: "bottom",
+      },
+      xaxis,
+      yaxis: {
+        ...plotLayoutBase.yaxis,
+        title: "",
+        categoryorder: "array",
+        categoryarray: repositoryNames,
+        tickmode: "array",
+        tickvals: repositoryNames,
+        ticktext: repositoryLabels,
+      },
+    },
+    { displayModeBar: false, responsive: true }
+  );
+}
+
+function renderOrganizationRepositoriesComparisonCharts() {
+  renderOrganizationRepositoriesComparisonChart("arm-examples-repositories-chart", "arm-examples", {
+    legendY: 1.033,
+    linkedRepositoryLabels: true,
+  });
+  renderOrganizationRepositoriesComparisonChart("arm-software-repositories-chart", "arm-software", {
+    compressedAxis: true,
+    linkedRepositoryLabels: true,
+  });
+  renderOrganizationRepositoriesComparisonChart("mdk-packs-repositories-chart", "mdk-packs", {
+    linkedRepositoryLabels: true,
+  });
+  renderOrganizationRepositoriesComparisonChart(
+    "open-cmsis-pack-repositories-chart",
+    "open-cmsis-pack",
+    {
+      axisConfig: OPEN_CMSIS_PACK_REPOSITORY_AXIS,
+      legendY: 1.011,
+      linkedRepositoryLabels: true,
+    }
+  );
+}
+
 function renderSnapshotHistoryChart() {
   const metricName = state.snapshotMetric;
   const metricConfig = SNAPSHOT_METRICS[metricName];
@@ -683,6 +904,7 @@ function renderAll() {
   renderSummary();
   renderOrganizationChart();
   renderTopRepositoriesChart();
+  renderOrganizationRepositoriesComparisonCharts();
   renderSnapshotHistoryChart();
   renderDailyTrendChart();
   renderHeatmapChart();
