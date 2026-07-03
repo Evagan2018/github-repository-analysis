@@ -672,11 +672,6 @@ function renderRepositoryTable() {
           <td>${formatNumber(row.total_views_14d)}</td>
           <td>${formatNumber(row.unique_visitors_14d)}</td>
           <td>${formatNumber(row.unique_cloners_14d)}</td>
-          <td>
-            <span class="badge ${row.archived ? "badge-yes" : "badge-no"}">
-              ${row.archived ? "Archived" : "Active"}
-            </span>
-          </td>
           <td>${row.days_since_last_push ?? "N/A"}</td>
         </tr>
       `
