@@ -475,13 +475,16 @@
             </div>
             <span class="pill">94 repositories</span>
           </div>
-          <div class="repository-chart-controls" aria-label="open-cmsis-pack repository metric controls">
+          <div
+            class="repository-chart-controls"
+            aria-label="open-cmsis-pack repository metric controls"
+          >
             <fieldset class="metric-control-group">
               <legend>Graphs of interest</legend>
               <label class="metric-choice">
                 <input
                   type="checkbox"
-                  name="open-cmsis-pack-metric"
+                  name="open-cmsis-pack-experimental-metric"
                   value="total_views_14d"
                   checked
                 />
@@ -490,7 +493,7 @@
               <label class="metric-choice">
                 <input
                   type="checkbox"
-                  name="open-cmsis-pack-metric"
+                  name="open-cmsis-pack-experimental-metric"
                   value="unique_visitors_14d"
                   checked
                 />
@@ -499,7 +502,7 @@
               <label class="metric-choice">
                 <input
                   type="checkbox"
-                  name="open-cmsis-pack-metric"
+                  name="open-cmsis-pack-experimental-metric"
                   value="unique_cloners_14d"
                   checked
                 />
@@ -511,7 +514,7 @@
               <label class="metric-choice">
                 <input
                   type="radio"
-                  name="open-cmsis-pack-order"
+                  name="open-cmsis-pack-experimental-order"
                   value="total_views_14d"
                   checked
                 />
@@ -520,7 +523,7 @@
               <label class="metric-choice">
                 <input
                   type="radio"
-                  name="open-cmsis-pack-order"
+                  name="open-cmsis-pack-experimental-order"
                   value="unique_visitors_14d"
                 />
                 <span>Unique visitors</span>
@@ -528,11 +531,344 @@
               <label class="metric-choice">
                 <input
                   type="radio"
-                  name="open-cmsis-pack-order"
+                  name="open-cmsis-pack-experimental-order"
                   value="unique_cloners_14d"
                 />
                 <span>Unique cloners</span>
               </label>
+            </fieldset>
+            <fieldset class="metric-control-group repository-filter-group">
+              <legend>Repositories</legend>
+              <div class="repository-filter-grid">
+                <label
+                  class="metric-choice repository-filter-all"
+                  title="All listed repositories. Exclude filters can remove repositories from this selection."
+                >
+                  <input
+                    type="checkbox"
+                    name="open-cmsis-pack-experimental-filter-all"
+                    data-repository-filter="open-cmsis-pack-experimental"
+                    checked
+                  />
+                  <span>All</span>
+                </label>
+                <details class="repository-advanced-search">
+                  <summary>Advanced search</summary>
+                  <div class="repository-advanced-search-body">
+                    <section class="repository-filter-section">
+                      <h3>Text filters</h3>
+                      <div class="repository-text-filter-grid">
+                        <div class="repository-filter-row">
+                          <label
+                            class="metric-choice"
+                            title="Comma-separated repository names."
+                          >
+                            <input
+                              type="checkbox"
+                              name="open-cmsis-pack-experimental-filter-list"
+                              data-repository-filter="open-cmsis-pack-experimental"
+                            />
+                            <span>List</span>
+                          </label>
+                          <input
+                            class="repository-filter-input"
+                            type="text"
+                            name="open-cmsis-pack-experimental-filter-list-value"
+                            data-repository-filter="open-cmsis-pack-experimental"
+                            placeholder="cbuild2cmake, debug-adapter-registry"
+                            aria-label="List repositories"
+                          />
+                        </div>
+                        <div class="repository-filter-row">
+                          <label
+                            class="metric-choice"
+                            title="Comma-separated name patterns. Wildcards such as STM32* are supported."
+                          >
+                            <input
+                              type="checkbox"
+                              name="open-cmsis-pack-experimental-filter-naming"
+                              data-repository-filter="open-cmsis-pack-experimental"
+                            />
+                            <span>Naming scheme</span>
+                          </label>
+                          <input
+                            class="repository-filter-input"
+                            type="text"
+                            name="open-cmsis-pack-experimental-filter-naming-value"
+                            data-repository-filter="open-cmsis-pack-experimental"
+                            placeholder="STM32*, ST_Nucleo*, CMSIS*"
+                            aria-label="Naming scheme patterns"
+                          />
+                        </div>
+                        <div class="repository-filter-row">
+                          <label
+                            class="metric-choice"
+                            title="Remove comma-separated repository names from the current selection."
+                          >
+                            <input
+                              type="checkbox"
+                              name="open-cmsis-pack-experimental-filter-exclude"
+                              data-repository-filter="open-cmsis-pack-experimental"
+                            />
+                            <span>Exclude</span>
+                          </label>
+                          <input
+                            class="repository-filter-input"
+                            type="text"
+                            name="open-cmsis-pack-experimental-filter-exclude-value"
+                            data-repository-filter="open-cmsis-pack-experimental"
+                            placeholder="cbuild2cmake, debug-adapter-registry"
+                            aria-label="Exclude repositories"
+                          />
+                        </div>
+                        <div class="repository-filter-row">
+                          <label
+                            class="metric-choice"
+                            title="Remove comma-separated name patterns from the current selection."
+                          >
+                            <input
+                              type="checkbox"
+                              name="open-cmsis-pack-experimental-filter-exclude-naming"
+                              data-repository-filter="open-cmsis-pack-experimental"
+                            />
+                            <span>Exclude naming scheme</span>
+                          </label>
+                          <input
+                            class="repository-filter-input"
+                            type="text"
+                            name="open-cmsis-pack-experimental-filter-exclude-naming-value"
+                            data-repository-filter="open-cmsis-pack-experimental"
+                            placeholder="STM32*, ST_Nucleo*, CMSIS*"
+                            aria-label="Exclude naming scheme patterns"
+                          />
+                        </div>
+                      </div>
+                    </section>
+                    <section class="repository-filter-metric-section">
+                      <div class="repository-filter-metric-heading">
+                        <h3>Metric filters</h3>
+                        <label>
+                          <span>Match</span>
+                          <select
+                            class="repository-filter-select"
+                            name="open-cmsis-pack-experimental-filter-metric-mode"
+                            data-repository-filter="open-cmsis-pack-experimental"
+                            aria-label="Metric filter match mode"
+                          >
+                            <option value="all">All numeric rules (logical AND)</option>
+                            <option value="any">Any numeric rule (logical OR)</option>
+                          </select>
+                        </label>
+                      </div>
+                      <p class="repository-filter-help">
+                        All numeric rules means a logical AND operation across the defined ranges and comparisons.
+                        Any numeric rule means a logical OR operation across the defined ranges and comparisons.
+                        Custom conditions can use the available aliases listed below; current alias values show the active snapshot min/max constants. Separate multiple conditions with commas.
+                      </p>
+                      <div class="repository-filter-metric-grid">
+                    <div class="repository-filter-metric-row">
+                      <span class="repository-filter-metric-label">
+                        <span>Total views (14d)</span>
+                        <code>tv_14d</code>
+                      </span>
+                      <select
+                        class="repository-filter-select"
+                        name="open-cmsis-pack-experimental-filter-tv_14d_min_op"
+                        data-repository-filter="open-cmsis-pack-experimental"
+                        aria-label="Total views lower operator"
+                      >
+                        <option value="gte">&gt;=</option>
+                        <option value="gt">&gt;</option>
+                        <option value="eq">=</option>
+                      </select>
+                      <input
+                        class="repository-filter-input"
+                        type="number"
+                        min="0"
+                        step="1"
+                        name="open-cmsis-pack-experimental-filter-tv_14d_min"
+                        data-repository-filter="open-cmsis-pack-experimental"
+                        placeholder="min"
+                        aria-label="Total views lower value"
+                      />
+                      <select
+                        class="repository-filter-select"
+                        name="open-cmsis-pack-experimental-filter-tv_14d_max_op"
+                        data-repository-filter="open-cmsis-pack-experimental"
+                        aria-label="Total views upper operator"
+                      >
+                        <option value="lte">&lt;=</option>
+                        <option value="lt">&lt;</option>
+                        <option value="eq">=</option>
+                      </select>
+                      <input
+                        class="repository-filter-input"
+                        type="number"
+                        min="0"
+                        step="1"
+                        name="open-cmsis-pack-experimental-filter-tv_14d_max"
+                        data-repository-filter="open-cmsis-pack-experimental"
+                        placeholder="max"
+                        aria-label="Total views upper value"
+                      />
+                    </div>
+                    <div class="repository-filter-metric-row">
+                      <span class="repository-filter-metric-label">
+                        <span>Unique visitors (14d)</span>
+                        <code>uv_14d</code>
+                      </span>
+                      <select
+                        class="repository-filter-select"
+                        name="open-cmsis-pack-experimental-filter-uv_14d_min_op"
+                        data-repository-filter="open-cmsis-pack-experimental"
+                        aria-label="Unique visitors lower operator"
+                      >
+                        <option value="gte">&gt;=</option>
+                        <option value="gt">&gt;</option>
+                        <option value="eq">=</option>
+                      </select>
+                      <input
+                        class="repository-filter-input"
+                        type="number"
+                        min="0"
+                        step="1"
+                        name="open-cmsis-pack-experimental-filter-uv_14d_min"
+                        data-repository-filter="open-cmsis-pack-experimental"
+                        placeholder="min"
+                        aria-label="Unique visitors lower value"
+                      />
+                      <select
+                        class="repository-filter-select"
+                        name="open-cmsis-pack-experimental-filter-uv_14d_max_op"
+                        data-repository-filter="open-cmsis-pack-experimental"
+                        aria-label="Unique visitors upper operator"
+                      >
+                        <option value="lte">&lt;=</option>
+                        <option value="lt">&lt;</option>
+                        <option value="eq">=</option>
+                      </select>
+                      <input
+                        class="repository-filter-input"
+                        type="number"
+                        min="0"
+                        step="1"
+                        name="open-cmsis-pack-experimental-filter-uv_14d_max"
+                        data-repository-filter="open-cmsis-pack-experimental"
+                        placeholder="max"
+                        aria-label="Unique visitors upper value"
+                      />
+                    </div>
+                    <div class="repository-filter-metric-row">
+                      <span class="repository-filter-metric-label">
+                        <span>Unique cloners (14d)</span>
+                        <code>uc_14d</code>
+                      </span>
+                      <select
+                        class="repository-filter-select"
+                        name="open-cmsis-pack-experimental-filter-uc_14d_min_op"
+                        data-repository-filter="open-cmsis-pack-experimental"
+                        aria-label="Unique cloners lower operator"
+                      >
+                        <option value="gte">&gt;=</option>
+                        <option value="gt">&gt;</option>
+                        <option value="eq">=</option>
+                      </select>
+                      <input
+                        class="repository-filter-input"
+                        type="number"
+                        min="0"
+                        step="1"
+                        name="open-cmsis-pack-experimental-filter-uc_14d_min"
+                        data-repository-filter="open-cmsis-pack-experimental"
+                        placeholder="min"
+                        aria-label="Unique cloners lower value"
+                      />
+                      <select
+                        class="repository-filter-select"
+                        name="open-cmsis-pack-experimental-filter-uc_14d_max_op"
+                        data-repository-filter="open-cmsis-pack-experimental"
+                        aria-label="Unique cloners upper operator"
+                      >
+                        <option value="lte">&lt;=</option>
+                        <option value="lt">&lt;</option>
+                        <option value="eq">=</option>
+                      </select>
+                      <input
+                        class="repository-filter-input"
+                        type="number"
+                        min="0"
+                        step="1"
+                        name="open-cmsis-pack-experimental-filter-uc_14d_max"
+                        data-repository-filter="open-cmsis-pack-experimental"
+                        placeholder="max"
+                        aria-label="Unique cloners upper value"
+                      />
+                    </div>
+                      </div>
+                    </section>
+                    <section class="repository-filter-section repository-filter-condition-section">
+                      <h3>Custom condition</h3>
+                      <div class="repository-condition-alias-row">
+                        <span>Available aliases</span>
+                        <span class="repository-condition-alias-group">
+                          <code>tv_14d</code>
+                          <code>tv_14d_min</code>
+                          <code>tv_14d_max</code>
+                          <code>uv_14d</code>
+                          <code>uv_14d_min</code>
+                          <code>uv_14d_max</code>
+                          <code>uc_14d</code>
+                          <code>uc_14d_min</code>
+                          <code>uc_14d_max</code>
+                        </span>
+                      </div>
+                      <div class="repository-condition-value-row">
+                        <span>Current alias values</span>
+                        <span class="repository-condition-alias-group">
+                          <span
+                            class="repository-condition-value-group"
+                            data-repository-filter-metric-summary="open-cmsis-pack-experimental"
+                            data-metric-name="total_views_14d"
+                          >
+                            <code>tv_14d_min:<span data-summary-bound="min">0</span></code>
+                            <code>tv_14d_max:<span data-summary-bound="max">0</span></code>
+                          </span>
+                          <span
+                            class="repository-condition-value-group"
+                            data-repository-filter-metric-summary="open-cmsis-pack-experimental"
+                            data-metric-name="unique_visitors_14d"
+                          >
+                            <code>uv_14d_min:<span data-summary-bound="min">0</span></code>
+                            <code>uv_14d_max:<span data-summary-bound="max">0</span></code>
+                          </span>
+                          <span
+                            class="repository-condition-value-group"
+                            data-repository-filter-metric-summary="open-cmsis-pack-experimental"
+                            data-metric-name="unique_cloners_14d"
+                          >
+                            <code>uc_14d_min:<span data-summary-bound="min">0</span></code>
+                            <code>uc_14d_max:<span data-summary-bound="max">0</span></code>
+                          </span>
+                        </span>
+                      </div>
+                      <div class="repository-filter-condition-row">
+                        <label for="open-cmsis-pack-experimental-filter-custom-condition">
+                          Expression
+                        </label>
+                        <input
+                          class="repository-filter-input"
+                          type="text"
+                          id="open-cmsis-pack-experimental-filter-custom-condition"
+                          name="open-cmsis-pack-experimental-filter-custom-condition"
+                          data-repository-filter="open-cmsis-pack-experimental"
+                          placeholder="uc_14d > uv_14d, tv_14d = tv_14d_min"
+                          aria-label="Custom metric filter condition"
+                        />
+                      </div>
+                    </section>
+                  </div>
+                </details>
+              </div>
             </fieldset>
           </div>
           <div class="repository-chart-frame">
@@ -544,18 +880,18 @@
               <label class="repository-choice repository-select-all repository-axis-all">
                 <input
                   type="checkbox"
-                  name="open-cmsis-pack-repository-all"
+                  name="open-cmsis-pack-experimental-repository-all"
                   checked
                 />
                 <span>All</span>
               </label>
               <div
-                id="open-cmsis-pack-repository-list"
+                id="open-cmsis-pack-experimental-repository-list"
                 class="repository-selector-list"
               ></div>
             </fieldset>
             <div
-              id="open-cmsis-pack-repositories-chart"
+              id="open-cmsis-pack-experimental-repositories-chart"
               class="chart-surface repository-comparison repository-comparison-large"
             ></div>
           </div>

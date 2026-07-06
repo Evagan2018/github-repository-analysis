@@ -37,6 +37,46 @@ const REPOSITORY_METRIC_DEFINITIONS = [
   },
 ];
 
+const REPOSITORY_METRIC_FILTER_DEFINITIONS = [
+  {
+    metricName: "total_views_14d",
+    abbreviation: "tv_14d",
+    minControl: "tv_14d_min",
+    maxControl: "tv_14d_max",
+  },
+  {
+    metricName: "unique_visitors_14d",
+    abbreviation: "uv_14d",
+    minControl: "uv_14d_min",
+    maxControl: "uv_14d_max",
+  },
+  {
+    metricName: "unique_cloners_14d",
+    abbreviation: "uc_14d",
+    minControl: "uc_14d_min",
+    maxControl: "uc_14d_max",
+  },
+];
+
+const REPOSITORY_METRIC_FILTER_BY_ABBREVIATION =
+  REPOSITORY_METRIC_FILTER_DEFINITIONS.reduce((lookup, definition) => {
+    lookup[definition.abbreviation] = definition.metricName;
+    return lookup;
+  }, {});
+
+const REPOSITORY_METRIC_FILTER_BY_BOUND_ALIAS =
+  REPOSITORY_METRIC_FILTER_DEFINITIONS.reduce((lookup, definition) => {
+    lookup[definition.minControl] = {
+      metricName: definition.metricName,
+      bound: "min",
+    };
+    lookup[definition.maxControl] = {
+      metricName: definition.metricName,
+      bound: "max",
+    };
+    return lookup;
+  }, {});
+
 const DAILY_METRICS = {
   views_count: {
     label: "Views",
@@ -122,6 +162,7 @@ const ORGANIZATION_REPOSITORY_CHARTS = [
     elementId: "arm-examples-repositories-chart",
     controlName: "arm-examples",
     repositorySelectionListId: "arm-examples-repository-list",
+    repositoryFilterControls: true,
     preserveUnselectedRepositories: true,
     legendY: 1.033,
     linkedRepositoryLabels: true,
@@ -131,6 +172,7 @@ const ORGANIZATION_REPOSITORY_CHARTS = [
     elementId: "arm-software-repositories-chart",
     controlName: "arm-software",
     repositorySelectionListId: "arm-software-repository-list",
+    repositoryFilterControls: true,
     preserveUnselectedRepositories: true,
     compressedAxis: true,
     linkedRepositoryLabels: true,
@@ -140,14 +182,16 @@ const ORGANIZATION_REPOSITORY_CHARTS = [
     elementId: "mdk-packs-repositories-chart",
     controlName: "mdk-packs",
     repositorySelectionListId: "mdk-packs-repository-list",
+    repositoryFilterControls: true,
     preserveUnselectedRepositories: true,
     linkedRepositoryLabels: true,
   },
   {
     organization: "open-cmsis-pack",
-    elementId: "open-cmsis-pack-repositories-chart",
-    controlName: "open-cmsis-pack",
-    repositorySelectionListId: "open-cmsis-pack-repository-list",
+    elementId: "open-cmsis-pack-experimental-repositories-chart",
+    controlName: "open-cmsis-pack-experimental",
+    repositorySelectionListId: "open-cmsis-pack-experimental-repository-list",
+    repositoryFilterControls: true,
     preserveUnselectedRepositories: true,
     axisConfig: OPEN_CMSIS_PACK_REPOSITORY_AXIS,
     legendY: 1.011,
@@ -257,6 +301,281 @@ function getOrganizationSnapshotRows(organizationName) {
   return (state.data.current_snapshot || []).filter(
     (row) => row.organization === organizationName
   );
+}
+
+function getRepositoryFilterMetricRowsMarkup(controlName) {
+  const safeControlName = escapeHtml(controlName);
+
+  return REPOSITORY_METRIC_FILTER_DEFINITIONS.map((definition) => {
+    const metricLabel = SNAPSHOT_METRICS[definition.metricName].label;
+    const shortMetricLabel = metricLabel.replace(" (14d)", "");
+
+    return `
+      <div class="repository-filter-metric-row">
+        <span class="repository-filter-metric-label">
+          <span>${escapeHtml(metricLabel)}</span>
+          <code>${escapeHtml(definition.abbreviation)}</code>
+        </span>
+        <select
+          class="repository-filter-select"
+          name="${safeControlName}-filter-${escapeHtml(definition.minControl)}_op"
+          data-repository-filter="${safeControlName}"
+          aria-label="${escapeHtml(shortMetricLabel)} lower operator"
+        >
+          <option value="gte">&gt;=</option>
+          <option value="gt">&gt;</option>
+          <option value="eq">=</option>
+        </select>
+        <input
+          class="repository-filter-input"
+          type="number"
+          min="0"
+          step="1"
+          name="${safeControlName}-filter-${escapeHtml(definition.minControl)}"
+          data-repository-filter="${safeControlName}"
+          placeholder="min"
+          aria-label="${escapeHtml(shortMetricLabel)} lower value"
+        />
+        <select
+          class="repository-filter-select"
+          name="${safeControlName}-filter-${escapeHtml(definition.maxControl)}_op"
+          data-repository-filter="${safeControlName}"
+          aria-label="${escapeHtml(shortMetricLabel)} upper operator"
+        >
+          <option value="lte">&lt;=</option>
+          <option value="lt">&lt;</option>
+          <option value="eq">=</option>
+        </select>
+        <input
+          class="repository-filter-input"
+          type="number"
+          min="0"
+          step="1"
+          name="${safeControlName}-filter-${escapeHtml(definition.maxControl)}"
+          data-repository-filter="${safeControlName}"
+          placeholder="max"
+          aria-label="${escapeHtml(shortMetricLabel)} upper value"
+        />
+      </div>
+    `;
+  }).join("");
+}
+
+function getRepositoryConditionAliasesMarkup() {
+  return REPOSITORY_METRIC_FILTER_DEFINITIONS.flatMap((definition) => [
+    definition.abbreviation,
+    definition.minControl,
+    definition.maxControl,
+  ]).map((alias) => `<code>${escapeHtml(alias)}</code>`).join("");
+}
+
+function getRepositoryConditionSummaryMarkup(controlName) {
+  const safeControlName = escapeHtml(controlName);
+
+  return REPOSITORY_METRIC_FILTER_DEFINITIONS.map((definition) => `
+    <span
+      class="repository-condition-value-group"
+      data-repository-filter-metric-summary="${safeControlName}"
+      data-metric-name="${escapeHtml(definition.metricName)}"
+    >
+      <code>${escapeHtml(definition.minControl)}:<span data-summary-bound="min">0</span></code>
+      <code>${escapeHtml(definition.maxControl)}:<span data-summary-bound="max">0</span></code>
+    </span>
+  `).join("");
+}
+
+function getRepositoryAdvancedFilterMarkup(controlName) {
+  const safeControlName = escapeHtml(controlName);
+
+  return `
+    <fieldset class="metric-control-group repository-filter-group">
+      <legend>Repositories</legend>
+      <div class="repository-filter-grid">
+        <label
+          class="metric-choice repository-filter-all"
+          title="All listed repositories. Exclude filters can remove repositories from this selection."
+        >
+          <input
+            type="checkbox"
+            name="${safeControlName}-filter-all"
+            data-repository-filter="${safeControlName}"
+            checked
+          />
+          <span>All</span>
+        </label>
+        <details class="repository-advanced-search">
+          <summary>Advanced search</summary>
+          <div class="repository-advanced-search-body">
+            <section class="repository-filter-section">
+              <h3>Text filters</h3>
+              <div class="repository-text-filter-grid">
+                <div class="repository-filter-row">
+                  <label
+                    class="metric-choice"
+                    title="Comma-separated repository names."
+                  >
+                    <input
+                      type="checkbox"
+                      name="${safeControlName}-filter-list"
+                      data-repository-filter="${safeControlName}"
+                    />
+                    <span>List</span>
+                  </label>
+                  <input
+                    class="repository-filter-input"
+                    type="text"
+                    name="${safeControlName}-filter-list-value"
+                    data-repository-filter="${safeControlName}"
+                    placeholder="cbuild2cmake, debug-adapter-registry"
+                    aria-label="List repositories"
+                  />
+                </div>
+                <div class="repository-filter-row">
+                  <label
+                    class="metric-choice"
+                    title="Comma-separated name patterns. Wildcards such as STM32* are supported."
+                  >
+                    <input
+                      type="checkbox"
+                      name="${safeControlName}-filter-naming"
+                      data-repository-filter="${safeControlName}"
+                    />
+                    <span>Naming scheme</span>
+                  </label>
+                  <input
+                    class="repository-filter-input"
+                    type="text"
+                    name="${safeControlName}-filter-naming-value"
+                    data-repository-filter="${safeControlName}"
+                    placeholder="STM32*, ST_Nucleo*, CMSIS*"
+                    aria-label="Naming scheme patterns"
+                  />
+                </div>
+                <div class="repository-filter-row">
+                  <label
+                    class="metric-choice"
+                    title="Remove comma-separated repository names from the current selection."
+                  >
+                    <input
+                      type="checkbox"
+                      name="${safeControlName}-filter-exclude"
+                      data-repository-filter="${safeControlName}"
+                    />
+                    <span>Exclude</span>
+                  </label>
+                  <input
+                    class="repository-filter-input"
+                    type="text"
+                    name="${safeControlName}-filter-exclude-value"
+                    data-repository-filter="${safeControlName}"
+                    placeholder="cbuild2cmake, debug-adapter-registry"
+                    aria-label="Exclude repositories"
+                  />
+                </div>
+                <div class="repository-filter-row">
+                  <label
+                    class="metric-choice"
+                    title="Remove comma-separated name patterns from the current selection."
+                  >
+                    <input
+                      type="checkbox"
+                      name="${safeControlName}-filter-exclude-naming"
+                      data-repository-filter="${safeControlName}"
+                    />
+                    <span>Exclude naming scheme</span>
+                  </label>
+                  <input
+                    class="repository-filter-input"
+                    type="text"
+                    name="${safeControlName}-filter-exclude-naming-value"
+                    data-repository-filter="${safeControlName}"
+                    placeholder="STM32*, ST_Nucleo*, CMSIS*"
+                    aria-label="Exclude naming scheme patterns"
+                  />
+                </div>
+              </div>
+            </section>
+            <section class="repository-filter-metric-section">
+              <div class="repository-filter-metric-heading">
+                <h3>Metric filters</h3>
+                <label>
+                  <span>Match</span>
+                  <select
+                    class="repository-filter-select"
+                    name="${safeControlName}-filter-metric-mode"
+                    data-repository-filter="${safeControlName}"
+                    aria-label="Metric filter match mode"
+                  >
+                    <option value="all">All numeric rules (logical AND)</option>
+                    <option value="any">Any numeric rule (logical OR)</option>
+                  </select>
+                </label>
+              </div>
+              <p class="repository-filter-help">
+                All numeric rules means a logical AND operation across the defined ranges and comparisons.
+                Any numeric rule means a logical OR operation across the defined ranges and comparisons.
+                Custom conditions can use the available aliases listed below; current alias values show the active snapshot min/max constants. Separate multiple conditions with commas.
+              </p>
+              <div class="repository-filter-metric-grid">
+                ${getRepositoryFilterMetricRowsMarkup(controlName)}
+              </div>
+            </section>
+            <section class="repository-filter-section repository-filter-condition-section">
+              <h3>Custom condition</h3>
+              <div class="repository-condition-alias-row">
+                <span>Available aliases</span>
+                <span class="repository-condition-alias-group">
+                  ${getRepositoryConditionAliasesMarkup()}
+                </span>
+              </div>
+              <div class="repository-condition-value-row">
+                <span>Current alias values</span>
+                <span class="repository-condition-alias-group">
+                  ${getRepositoryConditionSummaryMarkup(controlName)}
+                </span>
+              </div>
+              <div class="repository-filter-condition-row">
+                <label for="${safeControlName}-filter-custom-condition">
+                  Expression
+                </label>
+                <input
+                  class="repository-filter-input"
+                  type="text"
+                  id="${safeControlName}-filter-custom-condition"
+                  name="${safeControlName}-filter-custom-condition"
+                  data-repository-filter="${safeControlName}"
+                  placeholder="uc_14d > uv_14d, tv_14d = tv_14d_min"
+                  aria-label="Custom metric filter condition"
+                />
+              </div>
+            </section>
+          </div>
+        </details>
+      </div>
+    </fieldset>
+  `;
+}
+
+function ensureRepositoryFilterControls() {
+  ORGANIZATION_REPOSITORY_CHARTS.filter(
+    (chartConfig) => chartConfig.repositoryFilterControls
+  ).forEach((chartConfig) => {
+    const controlsElement = document
+      .querySelector(`[name="${chartConfig.controlName}-metric"]`)
+      ?.closest(".repository-chart-controls");
+
+    if (
+      !controlsElement ||
+      controlsElement.querySelector(`[data-repository-filter="${chartConfig.controlName}"]`)
+    ) {
+      return;
+    }
+
+    controlsElement.insertAdjacentHTML(
+      "beforeend",
+      getRepositoryAdvancedFilterMarkup(chartConfig.controlName)
+    );
+  });
 }
 
 function aggregateBy(items, groupKey, metricName) {
@@ -434,6 +753,442 @@ function getSelectedRepositoryNames(controlName) {
   return repositoryControls
     .filter((control) => control.checked)
     .map((control) => control.value);
+}
+
+function getRepositoryMetricSummaryValues(organization, metricName) {
+  const values = getOrganizationSnapshotRows(organization).map((row) =>
+    metricOrZero(row, metricName)
+  );
+
+  return {
+    min: values.length > 0 ? Math.min(...values) : null,
+    max: values.length > 0 ? Math.max(...values) : null,
+  };
+}
+
+function updateRepositoryFilterMetricSummaries(chartConfig) {
+  document
+    .querySelectorAll(
+      `[data-repository-filter-metric-summary="${chartConfig.controlName}"]`
+    )
+    .forEach((summaryElement) => {
+      const metricName = summaryElement.dataset.metricName;
+      const definition = REPOSITORY_METRIC_FILTER_DEFINITIONS.find(
+        (metricDefinition) => metricDefinition.metricName === metricName
+      );
+
+      if (!definition) {
+        return;
+      }
+
+      const summaryValues = getRepositoryMetricSummaryValues(
+        chartConfig.organization,
+        metricName
+      );
+      const minElement = summaryElement.querySelector('[data-summary-bound="min"]');
+      const maxElement = summaryElement.querySelector('[data-summary-bound="max"]');
+
+      if (minElement) {
+        minElement.textContent = summaryValues.min == null ? "-" : summaryValues.min;
+      }
+
+      if (maxElement) {
+        maxElement.textContent = summaryValues.max == null ? "-" : summaryValues.max;
+      }
+    });
+}
+
+function updateRepositoryMetricControlSummaries(chartConfig) {
+  const rows = getOrganizationSnapshotRows(chartConfig.organization);
+
+  document
+    .querySelectorAll(`[name="${chartConfig.controlName}-metric"]`)
+    .forEach((control) => {
+      const metricDefinition = REPOSITORY_METRIC_DEFINITIONS.find(
+        (metric) => metric.metricName === control.value
+      );
+      const labelElement = control.closest(".metric-choice");
+      const titleElement = labelElement?.querySelector("span:not(.metric-choice-range)");
+
+      if (!metricDefinition || !labelElement || !titleElement) {
+        return;
+      }
+
+      let rangeElement = labelElement.querySelector(".metric-choice-range");
+      if (!rangeElement) {
+        rangeElement = document.createElement("span");
+        rangeElement.className = "metric-choice-range";
+        labelElement.appendChild(rangeElement);
+      }
+
+      const values = rows.map((row) => metricOrZero(row, metricDefinition.metricName));
+      const minValue = values.length > 0 ? Math.min(...values) : null;
+      const maxValue = values.length > 0 ? Math.max(...values) : null;
+
+      titleElement.textContent = metricDefinition.name;
+      rangeElement.textContent =
+        minValue == null || maxValue == null
+          ? "min: - max: -"
+          : `min: ${formatNumber(minValue)} max: ${formatNumber(maxValue)}`;
+    });
+}
+
+function splitRepositoryFilterEntries(value) {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function repositoryFilterMatchesExact(row, entry) {
+  const normalizedEntry = entry.toLowerCase();
+  return [row.repository, row.repository_full_name]
+    .filter(Boolean)
+    .some((candidate) => candidate.toLowerCase() === normalizedEntry);
+}
+
+function repositoryFilterMatchesPattern(row, pattern) {
+  const trimmedPattern = pattern.trim();
+  const candidates = [row.repository].filter(Boolean);
+
+  if (trimmedPattern.includes("*") || trimmedPattern.includes("?")) {
+    const wildcardRegex = new RegExp(
+      `^${escapeRegExp(trimmedPattern).replace(/\\\*/g, ".*").replace(/\\\?/g, ".")}$`,
+      "i"
+    );
+
+    return candidates.some((candidate) => wildcardRegex.test(candidate));
+  }
+
+  const normalizedPattern = trimmedPattern.toLowerCase();
+  return candidates.some((candidate) =>
+    candidate.toLowerCase().includes(normalizedPattern)
+  );
+}
+
+function getRepositoryFilterControl(controlName, suffix) {
+  return document.querySelector(`[name="${controlName}-filter-${suffix}"]`);
+}
+
+function parseRepositoryFilterNumber(controlName, suffix) {
+  const rawValue = getRepositoryFilterControl(controlName, suffix)?.value;
+  const trimmedValue = String(rawValue || "").trim();
+
+  if (!trimmedValue) {
+    return null;
+  }
+
+  const parsedValue = Number(trimmedValue);
+  return Number.isFinite(parsedValue) ? parsedValue : null;
+}
+
+function getRepositoryFilterOperator(controlName, suffix, allowedOperators, fallbackOperator) {
+  const value = getRepositoryFilterControl(controlName, suffix)?.value;
+  return allowedOperators.includes(value) ? value : fallbackOperator;
+}
+
+function parseRepositoryConditionOperand(value) {
+  const normalizedValue = String(value || "").trim().toLowerCase();
+  const metricName = REPOSITORY_METRIC_FILTER_BY_ABBREVIATION[normalizedValue];
+  const boundAlias = REPOSITORY_METRIC_FILTER_BY_BOUND_ALIAS[normalizedValue];
+
+  if (metricName) {
+    return { type: "metric", metricName };
+  }
+
+  if (boundAlias) {
+    return {
+      type: "summary",
+      metricName: boundAlias.metricName,
+      bound: boundAlias.bound,
+    };
+  }
+
+  const numberValue = Number(normalizedValue);
+  return Number.isFinite(numberValue) ? { type: "number", value: numberValue } : null;
+}
+
+function parseRepositoryCustomConditionRule(condition) {
+  const match = String(condition || "").match(
+    /^\s*([a-zA-Z_][a-zA-Z0-9_]*|-?\d+(?:\.\d+)?)\s*(>=|<=|==|=|>|<)\s*([a-zA-Z_][a-zA-Z0-9_]*|-?\d+(?:\.\d+)?)\s*$/
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  const leftOperand = parseRepositoryConditionOperand(match[1]);
+  const rightOperand = parseRepositoryConditionOperand(match[3]);
+
+  if (!leftOperand || !rightOperand) {
+    return null;
+  }
+
+  return {
+    type: "comparison",
+    leftOperand,
+    operator: match[2] === "==" ? "=" : match[2],
+    rightOperand,
+  };
+}
+
+function parseRepositoryCustomConditionRules(controlName) {
+  const rawValue = getRepositoryFilterControl(controlName, "custom-condition")?.value;
+
+  return String(rawValue || "")
+    .split(/[,;\n]+/)
+    .map((condition) => condition.trim())
+    .filter(Boolean)
+    .map(parseRepositoryCustomConditionRule)
+    .filter(Boolean);
+}
+
+function getRepositoryConditionOperandValue(row, operand) {
+  if (operand.type === "metric") {
+    return metricOrZero(row, operand.metricName);
+  }
+
+  if (operand.type === "summary") {
+    const summaryValues = getRepositoryMetricSummaryValues(
+      row.organization,
+      operand.metricName
+    );
+
+    return summaryValues[operand.bound] ?? 0;
+  }
+
+  return operand.value;
+}
+
+function compareRepositoryMetricValues(leftValue, operator, rightValue) {
+  switch (operator) {
+    case ">":
+      return leftValue > rightValue;
+    case ">=":
+      return leftValue >= rightValue;
+    case "<":
+      return leftValue < rightValue;
+    case "<=":
+      return leftValue <= rightValue;
+    case "=":
+      return leftValue === rightValue;
+    default:
+      return false;
+  }
+}
+
+function getRepositoryMetricFilterRules(controlName) {
+  const metricModeControl = getRepositoryFilterControl(controlName, "metric-mode");
+  const mode = metricModeControl?.value === "any" ? "any" : "all";
+  const rangeRules = REPOSITORY_METRIC_FILTER_DEFINITIONS.map((definition) => {
+    const minValue = parseRepositoryFilterNumber(controlName, definition.minControl);
+    const maxValue = parseRepositoryFilterNumber(controlName, definition.maxControl);
+
+    return {
+      type: "range",
+      metricName: definition.metricName,
+      minOperator: getRepositoryFilterOperator(
+        controlName,
+        `${definition.minControl}_op`,
+        ["gte", "gt", "eq"],
+        "gte"
+      ),
+      minValue,
+      maxOperator: getRepositoryFilterOperator(
+        controlName,
+        `${definition.maxControl}_op`,
+        ["lte", "lt", "eq"],
+        "lte"
+      ),
+      maxValue,
+    };
+  }).filter((rule) => rule.minValue != null || rule.maxValue != null);
+  const comparisonRules = parseRepositoryCustomConditionRules(controlName);
+
+  return { mode, rules: [...rangeRules, ...comparisonRules] };
+}
+
+function repositoryMatchesMetricRule(row, rule) {
+  if (rule.type === "comparison") {
+    return compareRepositoryMetricValues(
+      getRepositoryConditionOperandValue(row, rule.leftOperand),
+      rule.operator,
+      getRepositoryConditionOperandValue(row, rule.rightOperand)
+    );
+  }
+
+  const value = metricOrZero(row, rule.metricName);
+
+  if (rule.minValue != null) {
+    const passesMinimum =
+      rule.minOperator === "eq"
+        ? value === rule.minValue
+        : rule.minOperator === "gt"
+          ? value > rule.minValue
+          : value >= rule.minValue;
+
+    if (!passesMinimum) {
+      return false;
+    }
+  }
+
+  if (rule.maxValue != null) {
+    const passesMaximum =
+      rule.maxOperator === "eq"
+        ? value === rule.maxValue
+        : rule.maxOperator === "lt"
+          ? value < rule.maxValue
+          : value <= rule.maxValue;
+
+    if (!passesMaximum) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function repositoryMatchesMetricRules(row, metricFilter) {
+  if (metricFilter.rules.length === 0) {
+    return true;
+  }
+
+  if (metricFilter.mode === "any") {
+    return metricFilter.rules.some((rule) => repositoryMatchesMetricRule(row, rule));
+  }
+
+  return metricFilter.rules.every((rule) => repositoryMatchesMetricRule(row, rule));
+}
+
+function normalizeRepositoryFilterControls(controlName, changedControl = null) {
+  const allControl = getRepositoryFilterControl(controlName, "all");
+  const listControl = getRepositoryFilterControl(controlName, "list");
+  const listValue = getRepositoryFilterControl(controlName, "list-value");
+  const namingControl = getRepositoryFilterControl(controlName, "naming");
+  const namingValue = getRepositoryFilterControl(controlName, "naming-value");
+
+  if (!allControl || !listControl || !namingControl) {
+    return;
+  }
+
+  if (changedControl === allControl && allControl.checked) {
+    listControl.checked = false;
+    namingControl.checked = false;
+    return;
+  }
+
+  if (changedControl === listValue && listValue.value.trim()) {
+    listControl.checked = true;
+  }
+
+  if (changedControl === namingValue && namingValue.value.trim()) {
+    namingControl.checked = true;
+  }
+
+  if (listControl.checked || namingControl.checked) {
+    allControl.checked = false;
+  }
+}
+
+function getRepositoryFilterSelectedNames(chartConfig) {
+  const { controlName, organization } = chartConfig;
+  const rows = getOrganizationSnapshotRows(organization);
+  const selectedRepositories = new Set();
+  const allControl = getRepositoryFilterControl(controlName, "all");
+  const listControl = getRepositoryFilterControl(controlName, "list");
+  const listValue = getRepositoryFilterControl(controlName, "list-value");
+  const namingControl = getRepositoryFilterControl(controlName, "naming");
+  const namingValue = getRepositoryFilterControl(controlName, "naming-value");
+  const excludeControl = getRepositoryFilterControl(controlName, "exclude");
+  const excludeValue = getRepositoryFilterControl(controlName, "exclude-value");
+  const excludeNamingControl = getRepositoryFilterControl(controlName, "exclude-naming");
+  const excludeNamingValue = getRepositoryFilterControl(controlName, "exclude-naming-value");
+  const includeAll = Boolean(allControl?.checked);
+  const includeList = Boolean(listControl?.checked);
+  const includeNaming = Boolean(namingControl?.checked);
+  const includeSpecificRepositories = includeList || includeNaming;
+  const metricFilter = getRepositoryMetricFilterRules(controlName);
+
+  if (includeAll && !includeSpecificRepositories) {
+    rows.forEach((row) => selectedRepositories.add(row.repository));
+  }
+
+  if (includeList) {
+    const listEntries = splitRepositoryFilterEntries(listValue?.value);
+    rows
+      .filter((row) =>
+        listEntries.some((entry) => repositoryFilterMatchesExact(row, entry))
+      )
+      .forEach((row) => selectedRepositories.add(row.repository));
+  }
+
+  if (includeNaming) {
+    const namingPatterns = splitRepositoryFilterEntries(namingValue?.value);
+    rows
+      .filter((row) =>
+        namingPatterns.some((pattern) => repositoryFilterMatchesPattern(row, pattern))
+      )
+      .forEach((row) => selectedRepositories.add(row.repository));
+  }
+
+  if (metricFilter.rules.length > 0) {
+    rows
+      .filter(
+        (row) =>
+          selectedRepositories.has(row.repository) &&
+          !repositoryMatchesMetricRules(row, metricFilter)
+      )
+      .forEach((row) => selectedRepositories.delete(row.repository));
+  }
+
+  if (excludeControl?.checked) {
+    const excludeEntries = splitRepositoryFilterEntries(excludeValue?.value);
+    rows
+      .filter((row) =>
+        excludeEntries.some((entry) => repositoryFilterMatchesExact(row, entry))
+      )
+      .forEach((row) => selectedRepositories.delete(row.repository));
+  }
+
+  if (excludeNamingControl?.checked) {
+    const excludePatterns = splitRepositoryFilterEntries(excludeNamingValue?.value);
+    rows
+      .filter((row) =>
+        excludePatterns.some((pattern) => repositoryFilterMatchesPattern(row, pattern))
+      )
+      .forEach((row) => selectedRepositories.delete(row.repository));
+  }
+
+  return rows
+    .filter((row) => selectedRepositories.has(row.repository))
+    .map((row) => row.repository);
+}
+
+function setRepositorySelectionByNames(controlName, repositoryNames) {
+  const selectedRepositories = new Set(repositoryNames);
+
+  document
+    .querySelectorAll(`[name="${controlName}-repository"]`)
+    .forEach((control) => {
+      control.checked = selectedRepositories.has(control.value);
+    });
+
+  syncRepositorySelectAll(controlName);
+}
+
+function applyRepositoryFilterControls(chartConfig) {
+  if (!chartConfig.repositoryFilterControls) {
+    return;
+  }
+
+  setRepositorySelectionByNames(
+    chartConfig.controlName,
+    getRepositoryFilterSelectedNames(chartConfig)
+  );
 }
 
 function populateRepositorySelectionControls() {
@@ -932,6 +1687,8 @@ function renderOrganizationRepositoryComparisonDashboard(chartConfig) {
   const { controlName, elementId, organization, ...chartOptions } = chartConfig;
   const metricDefinitions = getSelectedRepositoryMetricDefinitions(controlName);
   const selectedRepositoryNames = getSelectedRepositoryNames(controlName);
+  updateRepositoryMetricControlSummaries(chartConfig);
+  updateRepositoryFilterMetricSummaries(chartConfig);
 
   if (
     selectedRepositoryNames &&
@@ -1263,6 +2020,23 @@ function attachEventListeners() {
           renderChart();
         });
       });
+
+    if (chartConfig.repositoryFilterControls) {
+      document
+        .querySelectorAll(`[data-repository-filter="${chartConfig.controlName}"]`)
+        .forEach((control) => {
+          const eventName =
+            control.matches('input[type="text"], input[type="number"]')
+              ? "input"
+              : "change";
+
+          control.addEventListener(eventName, () => {
+            normalizeRepositoryFilterControls(chartConfig.controlName, control);
+            applyRepositoryFilterControls(chartConfig);
+            renderChart();
+          });
+        });
+    }
   });
 
   window.addEventListener("resize", () => {
@@ -1275,6 +2049,7 @@ async function loadDashboard() {
     state.data = await readDashboardData();
     fillOrganizationFilter(state.data.organizations || []);
     populateRepositorySelectionControls();
+    ensureRepositoryFilterControls();
     attachEventListeners();
     renderAll();
   } catch (error) {
