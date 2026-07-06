@@ -16,6 +16,27 @@ const SNAPSHOT_METRICS = {
   },
 };
 
+const REPOSITORY_METRIC_DEFINITIONS = [
+  {
+    name: SNAPSHOT_METRICS.total_views_14d.label,
+    label: "Total views",
+    metricName: "total_views_14d",
+    color: SNAPSHOT_METRICS.total_views_14d.color,
+  },
+  {
+    name: SNAPSHOT_METRICS.unique_visitors_14d.label,
+    label: "Unique visitors",
+    metricName: "unique_visitors_14d",
+    color: SNAPSHOT_METRICS.unique_visitors_14d.color,
+  },
+  {
+    name: SNAPSHOT_METRICS.unique_cloners_14d.label,
+    label: "Unique cloners",
+    metricName: "unique_cloners_14d",
+    color: SNAPSHOT_METRICS.unique_cloners_14d.color,
+  },
+];
+
 const DAILY_METRICS = {
   views_count: {
     label: "Views",
@@ -94,6 +115,37 @@ const OPEN_CMSIS_PACK_REPOSITORY_AXIS = {
     1000, 1200,
   ],
 };
+
+const ORGANIZATION_REPOSITORY_CHARTS = [
+  {
+    organization: "arm-examples",
+    elementId: "arm-examples-repositories-chart",
+    controlName: "arm-examples",
+    legendY: 1.033,
+    linkedRepositoryLabels: true,
+  },
+  {
+    organization: "arm-software",
+    elementId: "arm-software-repositories-chart",
+    controlName: "arm-software",
+    compressedAxis: true,
+    linkedRepositoryLabels: true,
+  },
+  {
+    organization: "mdk-packs",
+    elementId: "mdk-packs-repositories-chart",
+    controlName: "mdk-packs",
+    linkedRepositoryLabels: true,
+  },
+  {
+    organization: "open-cmsis-pack",
+    elementId: "open-cmsis-pack-repositories-chart",
+    controlName: "open-cmsis-pack",
+    axisConfig: OPEN_CMSIS_PACK_REPOSITORY_AXIS,
+    legendY: 1.011,
+    linkedRepositoryLabels: true,
+  },
+];
 
 const ui = {
   generatedAt: document.getElementById("generated-at"),
@@ -270,8 +322,36 @@ function buildDateWindow(endDateKey, dayCount) {
   );
 }
 
-function renderEmptyState(elementId, title, message) {
+function resetPlotContainer(elementId) {
   const element = document.getElementById(elementId);
+  if (!element) {
+    return null;
+  }
+
+  if (
+    element.classList.contains("js-plotly-plot") &&
+    typeof window.Plotly?.purge === "function"
+  ) {
+    window.Plotly.purge(element);
+  }
+
+  element.replaceChildren();
+  return element;
+}
+
+function preparePlotContainer(elementId) {
+  const element = document.getElementById(elementId);
+  if (element?.querySelector(".empty-state")) {
+    element.replaceChildren();
+  }
+}
+
+function renderEmptyState(elementId, title, message) {
+  const element = resetPlotContainer(elementId);
+  if (!element) {
+    return;
+  }
+
   element.innerHTML = `
     <div class="empty-state">
       <div>
@@ -414,6 +494,7 @@ function renderOrganizationChart() {
     return;
   }
 
+  preparePlotContainer("organization-chart");
   Plotly.react(
     "organization-chart",
     [
@@ -471,6 +552,7 @@ function renderTopRepositoriesChart() {
     return;
   }
 
+  preparePlotContainer("top-repositories-chart");
   Plotly.react(
     "top-repositories-chart",
     [
@@ -502,13 +584,18 @@ function renderOrganizationRepositoriesComparisonChart(elementId, organizationNa
     linkedRepositoryLabels = false,
     axisConfig = null,
     legendY = 1.08,
+    metricDefinitions = REPOSITORY_METRIC_DEFINITIONS,
+    orderMetricName = "total_views_14d",
   } = options;
   const customAxis = axisConfig || (compressedAxis ? COMPRESSED_REPOSITORY_AXIS : null);
+  const traceDefinitions = metricDefinitions.length
+    ? metricDefinitions
+    : REPOSITORY_METRIC_DEFINITIONS;
   const rows = (state.data.current_snapshot || [])
     .filter((row) => row.organization === organizationName)
     .sort(
       (left, right) =>
-        metricOrZero(right, "total_views_14d") - metricOrZero(left, "total_views_14d")
+        metricOrZero(right, orderMetricName) - metricOrZero(left, orderMetricName)
     );
 
   if (rows.length === 0) {
@@ -530,23 +617,6 @@ function renderOrganizationRepositoriesComparisonChart(elementId, organizationNa
 
     return `<a href="${getRepositoryTrafficUrl(row.repository_full_name)}" target="_blank">${escapeHtml(row.repository)}</a>`;
   });
-  const traceDefinitions = [
-    {
-      name: SNAPSHOT_METRICS.total_views_14d.label,
-      metricName: "total_views_14d",
-      color: SNAPSHOT_METRICS.total_views_14d.color,
-    },
-    {
-      name: SNAPSHOT_METRICS.unique_visitors_14d.label,
-      metricName: "unique_visitors_14d",
-      color: SNAPSHOT_METRICS.unique_visitors_14d.color,
-    },
-    {
-      name: SNAPSHOT_METRICS.unique_cloners_14d.label,
-      metricName: "unique_cloners_14d",
-      color: SNAPSHOT_METRICS.unique_cloners_14d.color,
-    },
-  ];
   const traces = [...traceDefinitions].reverse();
   const allRawValues = displayRows.flatMap((row) =>
     traceDefinitions.map((trace) => metricOrZero(row, trace.metricName))
@@ -581,6 +651,7 @@ function renderOrganizationRepositoriesComparisonChart(elementId, organizationNa
         tickformat: ",d",
       };
 
+  preparePlotContainer(elementId);
   Plotly.react(
     elementId,
     traces.map((trace) => {
@@ -635,27 +706,47 @@ function renderOrganizationRepositoriesComparisonChart(elementId, organizationNa
   );
 }
 
-function renderOrganizationRepositoriesComparisonCharts() {
-  renderOrganizationRepositoriesComparisonChart("arm-examples-repositories-chart", "arm-examples", {
-    legendY: 1.033,
-    linkedRepositoryLabels: true,
-  });
-  renderOrganizationRepositoriesComparisonChart("arm-software-repositories-chart", "arm-software", {
-    compressedAxis: true,
-    linkedRepositoryLabels: true,
-  });
-  renderOrganizationRepositoriesComparisonChart("mdk-packs-repositories-chart", "mdk-packs", {
-    linkedRepositoryLabels: true,
-  });
+function getSelectedRepositoryMetricDefinitions(controlName) {
+  const selectedMetricNames = Array.from(
+    document.querySelectorAll(`[name="${controlName}-metric"]:checked`)
+  ).map((control) => control.value);
+
+  return REPOSITORY_METRIC_DEFINITIONS.filter((metric) =>
+    selectedMetricNames.includes(metric.metricName)
+  );
+}
+
+function getSelectedRepositoryOrderMetric(controlName) {
+  const selectedControl = document.querySelector(`[name="${controlName}-order"]:checked`);
+  return selectedControl?.value || "total_views_14d";
+}
+
+function renderOrganizationRepositoryComparisonDashboard(chartConfig) {
+  const { controlName, elementId, organization, ...chartOptions } = chartConfig;
+  const metricDefinitions = getSelectedRepositoryMetricDefinitions(controlName);
+
+  if (metricDefinitions.length === 0) {
+    renderEmptyState(
+      elementId,
+      "No repository metrics selected",
+      `Select at least one graph of interest to show the ${organization} repository metrics.`
+    );
+    return;
+  }
+
   renderOrganizationRepositoriesComparisonChart(
-    "open-cmsis-pack-repositories-chart",
-    "open-cmsis-pack",
+    elementId,
+    organization,
     {
-      axisConfig: OPEN_CMSIS_PACK_REPOSITORY_AXIS,
-      legendY: 1.011,
-      linkedRepositoryLabels: true,
+      ...chartOptions,
+      metricDefinitions,
+      orderMetricName: getSelectedRepositoryOrderMetric(controlName),
     }
   );
+}
+
+function renderOrganizationRepositoriesComparisonCharts() {
+  ORGANIZATION_REPOSITORY_CHARTS.forEach(renderOrganizationRepositoryComparisonDashboard);
 }
 
 function renderSnapshotHistoryChart() {
@@ -681,6 +772,7 @@ function renderSnapshotHistoryChart() {
     return;
   }
 
+  preparePlotContainer("snapshot-history-chart");
   Plotly.react(
     "snapshot-history-chart",
     [
@@ -752,6 +844,7 @@ function renderDailyTrendChart() {
     return;
   }
 
+  preparePlotContainer("daily-trend-chart");
   Plotly.react(
     "daily-trend-chart",
     [
@@ -828,6 +921,7 @@ function renderHeatmapChart() {
     })
   );
 
+  preparePlotContainer("heatmap-chart");
   Plotly.react(
     "heatmap-chart",
     [
@@ -926,6 +1020,18 @@ function attachEventListeners() {
     state.dailyMetric = event.target.value;
     renderAll();
   });
+
+  ORGANIZATION_REPOSITORY_CHARTS.forEach((chartConfig) => {
+    document
+      .querySelectorAll(
+        `[name="${chartConfig.controlName}-metric"], [name="${chartConfig.controlName}-order"]`
+      )
+      .forEach((control) => {
+        control.addEventListener("change", () =>
+          renderOrganizationRepositoryComparisonDashboard(chartConfig)
+        );
+      });
+    });
 }
 
 async function loadDashboard() {
