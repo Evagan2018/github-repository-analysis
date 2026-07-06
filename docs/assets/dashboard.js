@@ -121,6 +121,8 @@ const ORGANIZATION_REPOSITORY_CHARTS = [
     organization: "arm-examples",
     elementId: "arm-examples-repositories-chart",
     controlName: "arm-examples",
+    repositorySelectionListId: "arm-examples-repository-list",
+    preserveUnselectedRepositories: true,
     legendY: 1.033,
     linkedRepositoryLabels: true,
   },
@@ -128,6 +130,8 @@ const ORGANIZATION_REPOSITORY_CHARTS = [
     organization: "arm-software",
     elementId: "arm-software-repositories-chart",
     controlName: "arm-software",
+    repositorySelectionListId: "arm-software-repository-list",
+    preserveUnselectedRepositories: true,
     compressedAxis: true,
     linkedRepositoryLabels: true,
   },
@@ -135,12 +139,16 @@ const ORGANIZATION_REPOSITORY_CHARTS = [
     organization: "mdk-packs",
     elementId: "mdk-packs-repositories-chart",
     controlName: "mdk-packs",
+    repositorySelectionListId: "mdk-packs-repository-list",
+    preserveUnselectedRepositories: true,
     linkedRepositoryLabels: true,
   },
   {
     organization: "open-cmsis-pack",
     elementId: "open-cmsis-pack-repositories-chart",
     controlName: "open-cmsis-pack",
+    repositorySelectionListId: "open-cmsis-pack-repository-list",
+    preserveUnselectedRepositories: true,
     axisConfig: OPEN_CMSIS_PACK_REPOSITORY_AXIS,
     legendY: 1.011,
     linkedRepositoryLabels: true,
@@ -243,6 +251,12 @@ function formatDate(value) {
 function metricOrZero(record, metricName) {
   const value = record?.[metricName];
   return typeof value === "number" ? value : 0;
+}
+
+function getOrganizationSnapshotRows(organizationName) {
+  return (state.data.current_snapshot || []).filter(
+    (row) => row.organization === organizationName
+  );
 }
 
 function aggregateBy(items, groupKey, metricName) {
@@ -374,6 +388,157 @@ function fillOrganizationFilter(organizations) {
     option.value = organization;
     option.textContent = organization;
     ui.organizationFilter.appendChild(option);
+  });
+}
+
+function syncRepositorySelectAll(controlName) {
+  const selectAllControl = document.querySelector(
+    `[name="${controlName}-repository-all"]`
+  );
+  const repositoryControls = Array.from(
+    document.querySelectorAll(`[name="${controlName}-repository"]`)
+  );
+
+  if (!selectAllControl || repositoryControls.length === 0) {
+    return;
+  }
+
+  const checkedCount = repositoryControls.filter((control) => control.checked).length;
+  const isPartial = checkedCount > 0 && checkedCount < repositoryControls.length;
+  selectAllControl.checked = checkedCount === repositoryControls.length;
+  selectAllControl.indeterminate = isPartial;
+  selectAllControl.setAttribute(
+    "aria-checked",
+    isPartial ? "mixed" : String(selectAllControl.checked)
+  );
+}
+
+function setRepositorySelection(controlName, checked) {
+  document
+    .querySelectorAll(`[name="${controlName}-repository"]`)
+    .forEach((control) => {
+      control.checked = checked;
+    });
+  syncRepositorySelectAll(controlName);
+}
+
+function getSelectedRepositoryNames(controlName) {
+  const repositoryControls = Array.from(
+    document.querySelectorAll(`[name="${controlName}-repository"]`)
+  );
+
+  if (repositoryControls.length === 0) {
+    return null;
+  }
+
+  return repositoryControls
+    .filter((control) => control.checked)
+    .map((control) => control.value);
+}
+
+function populateRepositorySelectionControls() {
+  ORGANIZATION_REPOSITORY_CHARTS.filter(
+    (chartConfig) => chartConfig.repositorySelectionListId
+  ).forEach((chartConfig) => {
+    const listElement = document.getElementById(chartConfig.repositorySelectionListId);
+
+    if (!listElement) {
+      return;
+    }
+
+    const rows = [...getOrganizationSnapshotRows(chartConfig.organization)].sort(
+      (left, right) =>
+        metricOrZero(right, "total_views_14d") - metricOrZero(left, "total_views_14d")
+    );
+
+    listElement.innerHTML = rows
+      .map(
+        (row) => `
+          <label
+            class="repository-choice repository-axis-choice"
+            data-repository-name="${escapeHtml(row.repository)}"
+          >
+            <input
+              type="checkbox"
+              name="${chartConfig.controlName}-repository"
+              value="${escapeHtml(row.repository)}"
+              checked
+            />
+            <span class="visually-hidden">${escapeHtml(row.repository)}</span>
+          </label>
+        `
+      )
+      .join("");
+
+    syncRepositorySelectAll(chartConfig.controlName);
+  });
+}
+
+function alignRepositorySelectionControls(chartConfig) {
+  if (!chartConfig.repositorySelectionListId) {
+    return;
+  }
+
+  const chartElement = document.getElementById(chartConfig.elementId);
+  const listElement = document.getElementById(chartConfig.repositorySelectionListId);
+  const frameElement = chartElement?.closest(".repository-chart-frame");
+  const controlsElement = frameElement?.querySelector(".repository-axis-controls");
+  const allLabel = frameElement?.querySelector(".repository-axis-all");
+
+  if (!chartElement || !listElement || !frameElement || !controlsElement || !allLabel) {
+    return;
+  }
+
+  const frameRect = frameElement.getBoundingClientRect();
+  const tickPositions = Array.from(chartElement.querySelectorAll(".ytick text"))
+    .map((tickLabel) => {
+      const repositoryName = tickLabel.textContent.trim();
+      const labelRect = tickLabel.getBoundingClientRect();
+      return {
+        repositoryName,
+        y: labelRect.top + labelRect.height / 2 - frameRect.top,
+      };
+    })
+    .filter((item) => item.repositoryName);
+
+  if (tickPositions.length === 0) {
+    return;
+  }
+
+  const sortedYPositions = tickPositions.map((item) => item.y).sort((left, right) => left - right);
+  const defaultGap = 34;
+  const rowGap =
+    sortedYPositions.length > 1
+      ? Math.max(24, sortedYPositions[1] - sortedYPositions[0])
+      : defaultGap;
+  const topRowY = sortedYPositions[0];
+  const allTop = Math.max(46, topRowY - rowGap);
+  const legendTop = Math.max(18, allTop - 34);
+  const positionByRepository = new Map(
+    tickPositions.map((item) => [item.repositoryName, item.y])
+  );
+  let hiddenOffset = 0;
+
+  controlsElement.style.setProperty("--repository-axis-legend-top", `${legendTop}px`);
+  controlsElement.style.setProperty("--repository-axis-all-top", `${allTop}px`);
+
+  Array.from(listElement.querySelectorAll(".repository-axis-choice")).forEach((choiceElement) => {
+    const repositoryName = choiceElement.dataset.repositoryName;
+    const yPosition = positionByRepository.get(repositoryName);
+
+    if (typeof yPosition === "number") {
+      choiceElement.dataset.lastTop = String(yPosition);
+      choiceElement.style.top = `${yPosition}px`;
+      choiceElement.style.opacity = "1";
+      return;
+    }
+
+    const fallbackTop =
+      Number(choiceElement.dataset.lastTop) ||
+      sortedYPositions.at(-1) + rowGap * (hiddenOffset + 1);
+    hiddenOffset += 1;
+    choiceElement.style.top = `${fallbackTop}px`;
+    choiceElement.style.opacity = "0.55";
   });
 }
 
@@ -586,17 +751,40 @@ function renderOrganizationRepositoriesComparisonChart(elementId, organizationNa
     legendY = 1.08,
     metricDefinitions = REPOSITORY_METRIC_DEFINITIONS,
     orderMetricName = "total_views_14d",
+    selectedRepositoryNames = null,
+    preserveUnselectedRepositories = false,
+    afterRender = null,
   } = options;
   const customAxis = axisConfig || (compressedAxis ? COMPRESSED_REPOSITORY_AXIS : null);
-  const traceDefinitions = metricDefinitions.length
-    ? metricDefinitions
-    : REPOSITORY_METRIC_DEFINITIONS;
+  const selectedRepositorySet = selectedRepositoryNames
+    ? new Set(selectedRepositoryNames)
+    : null;
+  const shouldPreserveUnselectedRepositories =
+    preserveUnselectedRepositories && selectedRepositorySet;
+  const traceDefinitions = REPOSITORY_METRIC_DEFINITIONS;
+  const selectedMetricSet = new Set(
+    metricDefinitions.map((metric) => metric.metricName)
+  );
   const rows = (state.data.current_snapshot || [])
-    .filter((row) => row.organization === organizationName)
-    .sort(
-      (left, right) =>
-        metricOrZero(right, orderMetricName) - metricOrZero(left, orderMetricName)
-    );
+    .filter(
+      (row) =>
+        row.organization === organizationName &&
+        (!selectedRepositorySet ||
+          shouldPreserveUnselectedRepositories ||
+          selectedRepositorySet.has(row.repository))
+    )
+    .sort((left, right) => {
+      if (shouldPreserveUnselectedRepositories) {
+        const leftSelected = selectedRepositorySet.has(left.repository);
+        const rightSelected = selectedRepositorySet.has(right.repository);
+
+        if (leftSelected !== rightSelected) {
+          return leftSelected ? -1 : 1;
+        }
+      }
+
+      return metricOrZero(right, orderMetricName) - metricOrZero(left, orderMetricName);
+    });
 
   if (rows.length === 0) {
     renderEmptyState(
@@ -618,8 +806,11 @@ function renderOrganizationRepositoriesComparisonChart(elementId, organizationNa
     return `<a href="${getRepositoryTrafficUrl(row.repository_full_name)}" target="_blank">${escapeHtml(row.repository)}</a>`;
   });
   const traces = [...traceDefinitions].reverse();
-  const allRawValues = displayRows.flatMap((row) =>
-    traceDefinitions.map((trace) => metricOrZero(row, trace.metricName))
+  const rowsForAxis = shouldPreserveUnselectedRepositories
+    ? displayRows.filter((row) => selectedRepositorySet.has(row.repository))
+    : displayRows;
+  const allRawValues = rowsForAxis.flatMap((row) =>
+    metricDefinitions.map((trace) => metricOrZero(row, trace.metricName))
   );
   const maxRawValue = Math.max(...allRawValues, 0);
   const compressedTicks = customAxis ? [...customAxis.ticks] : [];
@@ -652,10 +843,18 @@ function renderOrganizationRepositoriesComparisonChart(elementId, organizationNa
       };
 
   preparePlotContainer(elementId);
-  Plotly.react(
+  const plotResult = Plotly.react(
     elementId,
     traces.map((trace) => {
       const rawValues = displayRows.map((row) => metricOrZero(row, trace.metricName));
+      const visibleValues = rawValues.map((value, index) => {
+        const row = displayRows[index];
+        const isRepositorySelected =
+          !shouldPreserveUnselectedRepositories ||
+          selectedRepositorySet.has(row.repository);
+        const isMetricSelected = selectedMetricSet.has(trace.metricName);
+        return isRepositorySelected && isMetricSelected ? value : null;
+      });
 
       return {
         type: "bar",
@@ -663,8 +862,10 @@ function renderOrganizationRepositoriesComparisonChart(elementId, organizationNa
         name: trace.name,
         y: repositoryNames,
         x: customAxis
-          ? rawValues.map((value) => compressRepositoryMetricValue(value, customAxis))
-          : rawValues,
+          ? visibleValues.map((value) =>
+              value === null ? null : compressRepositoryMetricValue(value, customAxis)
+            )
+          : visibleValues,
         customdata: repositoryFullNames.map((repositoryFullName, index) => [
           repositoryFullName,
           rawValues[index],
@@ -704,6 +905,12 @@ function renderOrganizationRepositoriesComparisonChart(elementId, organizationNa
     },
     { displayModeBar: false, responsive: true }
   );
+
+  if (typeof afterRender === "function") {
+    Promise.resolve(plotResult).then(() => {
+      requestAnimationFrame(afterRender);
+    });
+  }
 }
 
 function getSelectedRepositoryMetricDefinitions(controlName) {
@@ -724,13 +931,19 @@ function getSelectedRepositoryOrderMetric(controlName) {
 function renderOrganizationRepositoryComparisonDashboard(chartConfig) {
   const { controlName, elementId, organization, ...chartOptions } = chartConfig;
   const metricDefinitions = getSelectedRepositoryMetricDefinitions(controlName);
+  const selectedRepositoryNames = getSelectedRepositoryNames(controlName);
 
-  if (metricDefinitions.length === 0) {
+  if (
+    selectedRepositoryNames &&
+    selectedRepositoryNames.length === 0 &&
+    !chartOptions.preserveUnselectedRepositories
+  ) {
     renderEmptyState(
       elementId,
-      "No repository metrics selected",
-      `Select at least one graph of interest to show the ${organization} repository metrics.`
+      "No repositories selected",
+      `Select at least one repository to show the ${organization} repository metrics.`
     );
+    alignRepositorySelectionControls(chartConfig);
     return;
   }
 
@@ -741,6 +954,8 @@ function renderOrganizationRepositoryComparisonDashboard(chartConfig) {
       ...chartOptions,
       metricDefinitions,
       orderMetricName: getSelectedRepositoryOrderMetric(controlName),
+      selectedRepositoryNames,
+      afterRender: () => alignRepositorySelectionControls(chartConfig),
     }
   );
 }
@@ -1022,22 +1237,44 @@ function attachEventListeners() {
   });
 
   ORGANIZATION_REPOSITORY_CHARTS.forEach((chartConfig) => {
+    const renderChart = () => renderOrganizationRepositoryComparisonDashboard(chartConfig);
+
     document
       .querySelectorAll(
         `[name="${chartConfig.controlName}-metric"], [name="${chartConfig.controlName}-order"]`
       )
       .forEach((control) => {
-        control.addEventListener("change", () =>
-          renderOrganizationRepositoryComparisonDashboard(chartConfig)
-        );
+        control.addEventListener("change", renderChart);
       });
+
+    const selectAllControl = document.querySelector(
+      `[name="${chartConfig.controlName}-repository-all"]`
+    );
+    selectAllControl?.addEventListener("change", (event) => {
+      setRepositorySelection(chartConfig.controlName, event.target.checked);
+      renderChart();
     });
+
+    document
+      .querySelectorAll(`[name="${chartConfig.controlName}-repository"]`)
+      .forEach((control) => {
+        control.addEventListener("change", () => {
+          syncRepositorySelectAll(chartConfig.controlName);
+          renderChart();
+        });
+      });
+  });
+
+  window.addEventListener("resize", () => {
+    ORGANIZATION_REPOSITORY_CHARTS.forEach(alignRepositorySelectionControls);
+  });
 }
 
 async function loadDashboard() {
   try {
     state.data = await readDashboardData();
     fillOrganizationFilter(state.data.organizations || []);
+    populateRepositorySelectionControls();
     attachEventListeners();
     renderAll();
   } catch (error) {

@@ -250,10 +250,30 @@
               </label>
             </fieldset>
           </div>
-          <div
-            id="arm-examples-repositories-chart"
-            class="chart-surface repository-comparison"
-          ></div>
+          <div class="repository-chart-frame">
+            <fieldset
+              class="repository-axis-controls"
+              aria-label="arm-examples repository selector"
+            >
+              <legend>Repositories</legend>
+              <label class="repository-choice repository-select-all repository-axis-all">
+                <input
+                  type="checkbox"
+                  name="arm-examples-repository-all"
+                  checked
+                />
+                <span>All</span>
+              </label>
+              <div
+                id="arm-examples-repository-list"
+                class="repository-selector-list"
+              ></div>
+            </fieldset>
+            <div
+              id="arm-examples-repositories-chart"
+              class="chart-surface repository-comparison"
+            ></div>
+          </div>
         </article>
 
         <article class="card chart-card span-12">
@@ -324,7 +344,30 @@
               </label>
             </fieldset>
           </div>
-          <div id="arm-software-repositories-chart" class="chart-surface repository-comparison repository-comparison-medium"></div>
+          <div class="repository-chart-frame">
+            <fieldset
+              class="repository-axis-controls"
+              aria-label="arm-software repository selector"
+            >
+              <legend>Repositories</legend>
+              <label class="repository-choice repository-select-all repository-axis-all">
+                <input
+                  type="checkbox"
+                  name="arm-software-repository-all"
+                  checked
+                />
+                <span>All</span>
+              </label>
+              <div
+                id="arm-software-repository-list"
+                class="repository-selector-list"
+              ></div>
+            </fieldset>
+            <div
+              id="arm-software-repositories-chart"
+              class="chart-surface repository-comparison repository-comparison-medium"
+            ></div>
+          </div>
         </article>
 
         <article class="card chart-card span-12">
@@ -335,7 +378,10 @@
             </div>
             <span class="pill">12 repositories</span>
           </div>
-          <div class="repository-chart-controls" aria-label="mdk-packs repository metric controls">
+          <div
+            class="repository-chart-controls"
+            aria-label="mdk-packs repository metric controls"
+          >
             <fieldset class="metric-control-group">
               <legend>Graphs of interest</legend>
               <label class="metric-choice">
@@ -395,7 +441,30 @@
               </label>
             </fieldset>
           </div>
-          <div id="mdk-packs-repositories-chart" class="chart-surface repository-comparison repository-comparison-small"></div>
+          <div class="repository-chart-frame">
+            <fieldset
+              class="repository-axis-controls"
+              aria-label="mdk-packs repository selector"
+            >
+              <legend>Repositories</legend>
+              <label class="repository-choice repository-select-all repository-axis-all">
+                <input
+                  type="checkbox"
+                  name="mdk-packs-repository-all"
+                  checked
+                />
+                <span>All</span>
+              </label>
+              <div
+                id="mdk-packs-repository-list"
+                class="repository-selector-list"
+              ></div>
+            </fieldset>
+            <div
+              id="mdk-packs-repositories-chart"
+              class="chart-surface repository-comparison repository-comparison-small"
+            ></div>
+          </div>
         </article>
 
         <article class="card chart-card span-12">
@@ -466,7 +535,30 @@
               </label>
             </fieldset>
           </div>
-          <div id="open-cmsis-pack-repositories-chart" class="chart-surface repository-comparison repository-comparison-large"></div>
+          <div class="repository-chart-frame">
+            <fieldset
+              class="repository-axis-controls"
+              aria-label="open-cmsis-pack repository selector"
+            >
+              <legend>Repositories</legend>
+              <label class="repository-choice repository-select-all repository-axis-all">
+                <input
+                  type="checkbox"
+                  name="open-cmsis-pack-repository-all"
+                  checked
+                />
+                <span>All</span>
+              </label>
+              <div
+                id="open-cmsis-pack-repository-list"
+                class="repository-selector-list"
+              ></div>
+            </fieldset>
+            <div
+              id="open-cmsis-pack-repositories-chart"
+              class="chart-surface repository-comparison repository-comparison-large"
+            ></div>
+          </div>
         </article>
       </section>
     </div>
